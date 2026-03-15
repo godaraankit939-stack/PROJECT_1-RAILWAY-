@@ -25,23 +25,23 @@ async def start_userbots():
 
     for session_str in sessions:
         try:
+            # Client Initialize
             client = TelegramClient(StringSession(session_str), API_ID, API_HASH)
-            # await client.connect() ki jagah seedha start() loop ke andar safe hai
             await client.start()
 
             if await client.is_user_authorized():
                 me = await client.get_me()
-                print(f"✅ Live: {me.first_name} (@{me.username})")
+                print(f"✅ Live: {me.first_name} (@{me.username}) | ID: {me.id}")
 
                 # --- GLOBAL MAINTENANCE HANDLER ---
                 @client.on(events.NewMessage(outgoing=True))
                 async def global_maintenance_manager(event):
+                    # Check maintenance status from DB
                     if await get_maintenance():
                         # Owner aur Sudo ko maintenance affect nahi karegi
                         if event.sender_id != OWNER_ID and not await is_sudo(event.sender_id):
                             if event.text.startswith("."):
                                 await event.edit("🛠 **DARK-USERBOT is currently under Maintenance.**\nCommands are disabled for now.")
-                                # Agle plugins ko execute hone se rokne ke liye
                                 raise events.StopPropagation
 
                 # --- DYNAMIC PLUGIN LOADER ---
@@ -61,14 +61,17 @@ async def load_plugins(client):
     path = Path("plugins")
     if not path.exists():
         os.makedirs(path)
+        return
         
     for file in path.glob("*.py"):
         if file.name == "__init__.py":
             continue
         
+        # Format: plugins.filename
         module_path = f"plugins.{file.stem}"
         try:
-            # Module ko reload/import karna
+            # Module import or reload
+            importlib.invalidate_caches()
             plugin = importlib.import_module(module_path)
             
             # Har plugin mein setup(client) function hona chahiye
@@ -79,13 +82,15 @@ async def load_plugins(client):
 
 if __name__ == "__main__":
     print("🛑✨ DARK-USERBOT Engine Starting...")
-    # New event loop setup to fix RuntimeError on Render
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
+        # Userbots start karna
         loop.run_until_complete(start_userbots())
-        print("🚀 All hosted accounts are now active.")
+        print("🚀 All hosted accounts are now active in background.")
+        # Loop ko chalaaye rakhna taaki background tasks na rukein
         loop.run_forever()
     except KeyboardInterrupt:
         print("🛑 Engine Stopped.")
-        
+    except Exception as e:
+        print(f"❗ Fatal Engine Error: {e}")
