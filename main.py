@@ -10,18 +10,18 @@ from telethon.errors import (
 from config import API_ID, API_HASH, BOT_TOKEN, START_MSG, LOGIN_SUCCESS, OWNER_ID
 from database import (
     save_session, is_sudo, ban_user, unban_user, 
-    is_banned, set_maintenance, get_maintenance
+    is_banned, set_maintenance, get_maintenance,
+    get_all_sessions, get_sudo_list # Naye functions database se
 )
 
 # Render fix: ensures config/database are found
 sys.path.append(os.getcwd())
 
-# Bot Client Initialize (Global define, but start inside loop)
+# Bot Client Initialize
 bot = TelegramClient('manager_bot', API_ID, API_HASH)
 
 @bot.on(events.NewMessage(pattern='/start'))
 async def start(event):
-    # Ban check
     if await is_banned(event.sender_id):
         return await event.reply("❌ **You are banned from using this bot.**")
     await event.reply(START_MSG, parse_mode='md')
@@ -41,36 +41,45 @@ async def host_handler(event):
         number = await conv.get_response()
         phone_number = number.text.replace(" ", "")
         
+        # OTP Status
+        status_msg = await conv.send_message("📨 **Sending OTP... Please wait.**")
+        
         client = TelegramClient(StringSession(), API_ID, API_HASH)
         await client.connect()
         
         try:
             await client.send_code_request(phone_number)
+            await status_msg.edit("✅ **OTP Sent!**\nPlease send it like: `1 2 3 4 5`")
         except PhoneNumberInvalidError:
-            await conv.send_message("❌ **Invalid Phone Number.** Restart /host.")
+            await status_msg.edit("❌ **Invalid Phone Number.** Restart /host.")
             return
 
-        await conv.send_message("📩 **OTP sent to your Telegram.**\nPlease send it like: `1 2 3 4 5`")
         otp_res = await conv.get_response()
         otp = otp_res.text.replace(" ", "")
+
+        # Login Status
+        await status_msg.edit("⚙️ **Logging in... Please wait.**")
 
         try:
             await client.sign_in(phone_number, otp)
         except SessionPasswordNeededError:
-            await conv.send_message("🔐 **2FA detected.** Send your password:")
+            await status_msg.edit("🔐 **2FA detected.** Send your password:")
             pwd = await conv.get_response()
             try:
                 await client.sign_in(password=pwd.text)
             except:
-                await conv.send_message("❌ **Wrong Password.**")
+                await status_msg.edit("❌ **Wrong Password.**")
                 return
-        except Exception:
-            await conv.send_message("❌ **Login Failed.**")
+        except Exception as e:
+            await status_msg.edit(f"❌ **Login Failed:** `{e}`")
             return
 
+        # Success - String Session Save aur Send
         session_str = client.session.save()
         user_id = (await client.get_me()).id
         await save_session(user_id, session_str)
+        
+        await status_msg.edit(f"✅ **Login Successful!**\n\n**Your String Session:**\n`{session_str}`\n\nKeep it safe and use it for `/clone` command.")
         await conv.send_message(LOGIN_SUCCESS)
         await client.disconnect()
 
@@ -85,26 +94,50 @@ async def ban(event):
             await ban_user(user_id)
             await event.reply(f"🚫 **User {user_id} Banned.**")
 
+@bot.on(events.NewMessage(pattern='/unban'))
+async def unban_cmd(event):
+    if event.sender_id == OWNER_ID or await is_sudo(event.sender_id):
+        reply = await event.get_reply_message()
+        user_id = reply.sender_id if reply else None
+        if user_id:
+            await unban_user(user_id)
+            await event.reply(f"✅ **User {user_id} Unbanned.**")
+
 @bot.on(events.NewMessage(pattern='/maintenance'))
 async def maint(event):
     if event.sender_id == OWNER_ID or await is_sudo(event.sender_id):
         curr = await get_maintenance()
         await set_maintenance(not curr)
-        await event.reply(f"🚧 **Maintenance:** {'ON' if not curr else 'OFF'}")
+        status = "ON 🛠" if not curr else "OFF ✅"
+        await event.reply(f"🚧 **Maintenance Mode is now {status}**")
 
-# --- ASYNC LOOP FIX (Render special) ---
+@bot.on(events.NewMessage(pattern='/panel'))
+async def panel(event):
+    if event.sender_id == OWNER_ID:
+        sessions = await get_all_sessions()
+        sudo_list = await get_sudo_list()
+        maint_status = "ON 🛠" if await get_maintenance() else "OFF ✅"
+        
+        msg = (
+            "📊 **DARK-USERBOT ADMIN PANEL**\n\n"
+            f"🚀 **Active Userbots:** `{len(sessions)}`\n"
+            f"🛡 **Sudo Users:** `{len(sudo_list)}`\n"
+            f"🚧 **Maintenance:** `{maint_status}`\n"
+            f"👤 **Owner ID:** `{OWNER_ID}`"
+        )
+        await event.reply(msg)
+
+# --- ASYNC LOOP FIX ---
 async def run_manager():
-    # Bot ko async context ke andar start kar rahe hain
     await bot.start(bot_token=BOT_TOKEN)
     print("Manager Bot Started...")
     await bot.run_until_disconnected()
 
 if __name__ == "__main__":
-    # Naya loop create karke bot start karna
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
         loop.run_until_complete(run_manager())
     except KeyboardInterrupt:
         pass
-        
+    
