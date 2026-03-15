@@ -1,9 +1,0 @@
-telethon
-pymongo
-dnspython
-requests
-beautifulsoup4
-flask
-gunicorn
-motor
-
