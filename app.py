@@ -23,8 +23,8 @@ def run_flask():
 def start_manager():
     print("LOG: Starting Manager Bot...")
     if os.path.exists("main.py"):
-        # Popen background mein chalne ke liye best hai, ye code ko block nahi karta
-        subprocess.Popen(["python3", "main.py"])
+        # os.system use kiya hai taaki direct shell command chale
+        os.system("python3 main.py")
     else:
         print("ERROR: main.py not found in root folder!")
 
@@ -32,8 +32,7 @@ def start_manager():
 def start_userbot():
     print("LOG: Starting Userbot Engine...")
     if os.path.exists("userbot.py"):
-        # Dono bots ko parallel chalane ke liye Popen zaroori hai
-        subprocess.Popen(["python3", "userbot.py"])
+        os.system("python3 userbot.py")
     else:
         print("ERROR: userbot.py not found in root folder!")
 
@@ -45,14 +44,14 @@ if __name__ == "__main__":
     flask_thread.start()
     
     # Chhota sa delay taaki Flask port ko pakad le
-    time.sleep(1)
+    time.sleep(2)
 
-    # Manager Bot aur Userbot ko background mein fire karna
-    start_manager()
-    start_userbot()
+    # Manager Bot ko thread mein chalana taaki ye block na kare
+    manager_thread = threading.Thread(target=start_manager)
+    manager_thread.daemon = True
+    manager_thread.start()
 
-    # Main thread ko block karke zinda rakhna (threading.Event se)
-    # Iske bina script turant band ho jayegi
+    # Userbot ko Main process mein rakhna (Ye bot ko band nahi hone dega)
     print("LOG: DARK-USERBOT services are booting up...")
-    threading.Event().wait()
+    start_userbot()
     
