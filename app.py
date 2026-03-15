@@ -19,16 +19,17 @@ def run_flask():
 
 def start_manager():
     print("LOG: Starting Manager Bot...")
-    # Error se bachne ke liye check kar rahe hain file bahar hai ya nahi
     if os.path.exists("main.py"):
-        subprocess.run(["python3", "main.py"])
+        # Popen use kiya hai taaki ye background mein chale aur loop block na ho
+        subprocess.Popen(["python3", "main.py"])
     else:
         print("ERROR: main.py not found in root folder!")
 
 def start_userbot():
     print("LOG: Starting Userbot Engine...")
     if os.path.exists("userbot.py"):
-        subprocess.run(["python3", "userbot.py"])
+        # Popen use kiya hai background process ke liye
+        subprocess.Popen(["python3", "userbot.py"])
     else:
         print("ERROR: userbot.py not found in root folder!")
 
@@ -38,11 +39,13 @@ if __name__ == "__main__":
     flask_thread.daemon = True
     flask_thread.start()
 
-    # 2. Manager Bot (@BotFather wala)
-    manager_thread = threading.Thread(target=start_manager)
-    manager_thread.daemon = True
-    manager_thread.start()
+    # 2. Manager Bot (@BotFather wala) ko start karna
+    start_manager()
 
-    # 3. Userbot (Engine) - Ise main thread mein rakhna hai
-    print("LOG: DARK-USERBOT services are booting up...")
+    # 3. Userbot (Engine) ko start karna
     start_userbot()
+
+    # Main thread ko zinda rakhne ke liye taaki Render bot band na kare
+    print("LOG: DARK-USERBOT services are booting up...")
+    threading.Event().wait()
+            
