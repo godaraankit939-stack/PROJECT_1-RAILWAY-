@@ -1,4 +1,5 @@
 import os, asyncio
+import sys
 from telethon import TelegramClient, events, Button
 from telethon.sessions import StringSession
 from telethon.errors import (
@@ -11,6 +12,9 @@ from database import (
     save_session, is_sudo, ban_user, unban_user, 
     is_banned, set_maintenance, get_maintenance
 )
+
+# Render fix: ensures config/database are found
+sys.path.append(os.getcwd())
 
 # Bot Client Initialize
 bot = TelegramClient('manager_bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
@@ -88,6 +92,17 @@ async def maint(event):
         await set_maintenance(not curr)
         await event.reply(f"🚧 **Maintenance:** {'ON' if not curr else 'OFF'}")
 
-print("Manager Bot Started...")
-bot.run_until_disconnected()
+# --- ASYNC LOOP FIX (Render special) ---
+async def run_manager():
+    print("Manager Bot Started...")
+    await bot.run_until_disconnected()
+
+if __name__ == "__main__":
+    # Naya loop create karke bot start karna
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(run_manager())
+    except KeyboardInterrupt:
+        pass
         
