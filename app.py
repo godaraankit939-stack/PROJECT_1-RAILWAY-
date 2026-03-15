@@ -7,37 +7,42 @@ app = Flask(__name__)
 
 @app.route('/')
 def hello():
-    # Render is page ko dekh kar bot ko online rakhega
-    return "DARK USERBOT IS LIVE 🚀"
+    # Render ko '200 OK' signal bhejne ke liye
+    return "DARK USERBOT IS LIVE 🚀", 200
 
 def run_flask():
-    # Render hamesha ek 'PORT' variable deta hai, default 8080
+    # Render ka port ya default 8080
     port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port)
+    print(f"LOG: Port binding on {port}...")
+    # use_reloader=False zaroori hai threads ke liye
+    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
 
 def start_manager():
-    # Manager Bot (@BotFather wala) ko start karega
     print("LOG: Starting Manager Bot...")
-    subprocess.run(["python3", "main.py"])
+    # Error se bachne ke liye check kar rahe hain file bahar hai ya nahi
+    if os.path.exists("main.py"):
+        subprocess.run(["python3", "main.py"])
+    else:
+        print("ERROR: main.py not found in root folder!")
 
 def start_userbot():
-    # Userbot Engine ko start karega
     print("LOG: Starting Userbot Engine...")
-    subprocess.run(["python3", "userbot.py"])
+    if os.path.exists("userbot.py"):
+        subprocess.run(["python3", "userbot.py"])
+    else:
+        print("ERROR: userbot.py not found in root folder!")
 
 if __name__ == "__main__":
-    # 1. Flask ko background thread mein chalana (Port check ke liye)
+    # 1. Sabse pehle Flask thread taaki Port turant open ho jaye
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.daemon = True
     flask_thread.start()
 
-    # 2. Manager Bot ko background thread mein chalana
+    # 2. Manager Bot (@BotFather wala)
     manager_thread = threading.Thread(target=start_manager)
     manager_thread.daemon = True
     manager_thread.start()
 
-    # 3. Userbot ko MAIN thread mein chalana
-    # Isse script end nahi hogi aur bot chalta rahega
+    # 3. Userbot (Engine) - Ise main thread mein rakhna hai
     print("LOG: DARK-USERBOT services are booting up...")
     start_userbot()
-    
