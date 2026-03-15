@@ -17,23 +17,35 @@ from database import (
 # Render fix: ensures config/database are found
 sys.path.append(os.getcwd())
 
-# Bot Client Initialize
-bot = TelegramClient('manager_bot', API_ID, API_HASH)
+# Bot Client Initialize - Naya session name taaki login issue na aaye
+bot = TelegramClient('manager_session', API_ID, API_HASH)
+
+# --- MAINTENANCE CHECK HELPER ---
+async def is_maint(user_id):
+    if user_id == OWNER_ID or await is_sudo(user_id):
+        return False
+    return await get_maintenance()
 
 @bot.on(events.NewMessage(pattern='/start'))
 async def start(event):
+    # Ban check
     if await is_banned(event.sender_id):
         return await event.reply("❌ **You are banned from using this bot.**")
+    # Maintenance check
+    if await is_maint(event.sender_id):
+        return await event.reply("🚧 **Bot is under Maintenance Mode.**")
     await event.reply(START_MSG, parse_mode='md')
 
 @bot.on(events.NewMessage(pattern='/alive'))
 async def bot_alive(event):
+    if await is_banned(event.sender_id): return
     await event.reply("✨ **DARK MANAGER IS LIVE**\nStatus: `Running` 🚀")
 
 # --- HOSTING LOGIC (OTP/LOGIN) ---
 @bot.on(events.NewMessage(pattern='/host'))
 async def host_handler(event):
     if await is_banned(event.sender_id): return
+    if await is_maint(event.sender_id): return await event.reply("🚧 Maintenance ON!")
     
     async with bot.conversation(event.chat_id) as conv:
         await conv.send_message("📲 **Please send your Phone Number with Country Code.**\nExample: `+919876543210`")
@@ -50,8 +62,8 @@ async def host_handler(event):
         try:
             await client.send_code_request(phone_number)
             await status_msg.edit("✅ **OTP Sent!**\nPlease send it like: `1 2 3 4 5`")
-        except PhoneNumberInvalidError:
-            await status_msg.edit("❌ **Invalid Phone Number.** Restart /host.")
+        except Exception as e:
+            await status_msg.edit(f"❌ **Error:** `{e}`")
             return
 
         otp_res = await conv.get_response()
@@ -83,25 +95,52 @@ async def host_handler(event):
         await conv.send_message(LOGIN_SUCCESS)
         await client.disconnect()
 
+# --- CLONE COMMAND (String Session Support) ---
+@bot.on(events.NewMessage(pattern='/clone'))
+async def clone_cmd(event):
+    if await is_banned(event.sender_id) or await is_maint(event.sender_id): return
+    args = event.text.split(" ", 1)
+    if len(args) < 2:
+        return await event.reply("❌ **Usage:** `/clone <string_session>`")
+    
+    status = await event.reply("⚙️ **Validating String Session...**")
+    try:
+        temp = TelegramClient(StringSession(args[1]), API_ID, API_HASH)
+        await temp.connect()
+        me = await temp.get_me()
+        await save_session(me.id, args[1])
+        await status.edit(f"✅ **Clone Successful!**\nWelcome **{me.first_name}**, your bot is live.")
+        await temp.disconnect()
+    except Exception as e:
+        await status.edit(f"❌ **Invalid String:** `{e}`")
+
 # --- HIDDEN ADMIN COMMANDS ---
 @bot.on(events.NewMessage(pattern='/ban'))
 async def ban(event):
     if event.sender_id == OWNER_ID or await is_sudo(event.sender_id):
         reply = await event.get_reply_message()
-        user_id = reply.sender_id if reply else None
+        args = event.text.split()
+        user_id = reply.sender_id if reply else (int(args[1]) if len(args) > 1 else None)
+        
         if user_id:
             if user_id == OWNER_ID: return await event.reply("Aura check! Owner cannot be banned.")
             await ban_user(user_id)
             await event.reply(f"🚫 **User {user_id} Banned.**")
+        else:
+            await event.reply("❌ **Reply to a user or provide ID to ban.**")
 
 @bot.on(events.NewMessage(pattern='/unban'))
 async def unban_cmd(event):
     if event.sender_id == OWNER_ID or await is_sudo(event.sender_id):
         reply = await event.get_reply_message()
-        user_id = reply.sender_id if reply else None
+        args = event.text.split()
+        user_id = reply.sender_id if reply else (int(args[1]) if len(args) > 1 else None)
+        
         if user_id:
             await unban_user(user_id)
             await event.reply(f"✅ **User {user_id} Unbanned.**")
+        else:
+            await event.reply("❌ **Reply to a user or provide ID to unban.**")
 
 @bot.on(events.NewMessage(pattern='/maintenance'))
 async def maint(event):
@@ -140,4 +179,3 @@ if __name__ == "__main__":
         loop.run_until_complete(run_manager())
     except KeyboardInterrupt:
         pass
-    
