@@ -52,23 +52,45 @@ async def create_handler(event):
     await event.edit(f"`🛠 Creating Group: {group_name}...`")
 
     try:
-        # 🚀 𝖲𝖠𝖪𝖳𝖨: Group Creation Logic Fix
+        # 🚀 𝖲𝖠𝖪𝖳𝖨 𝖫𝖮𝖦𝖨𝖢: 100% ID Extraction
         result = await client(functions.messages.CreateChatRequest(
             users=[me.id], 
             title=group_name
         ))
         
-        # 'result' updates object hai, usme se naye group ki ID nikalna
-        new_group_id = result.chats[0].id
+        # Multiple checks taaki 'InvitedUsers' wala error na aaye
+        new_group_id = None
         
-        # 𝖲𝖠𝖪𝖳𝖨: Wait for server synchronization
-        await asyncio.sleep(2)
+        # Check 1: Direct chats attribute
+        if hasattr(result, 'chats') and result.chats:
+            new_group_id = result.chats[0].id
+        # Check 2: Updates list ke andar se
+        elif hasattr(result, 'updates'):
+            for upd in result.updates:
+                if hasattr(upd, 'chats') and upd.chats:
+                    new_group_id = upd.chats[0].id
+                    break
+                if hasattr(upd, 'chat_id'):
+                    new_group_id = upd.chat_id
+                    break
+        
+        # Agar fir bhi na mile toh last created chat uthana (Ultimate Fail-safe)
+        if not new_group_id:
+            async for dialog in client.iter_dialogs(limit=5):
+                if dialog.name == group_name:
+                    new_group_id = dialog.id
+                    break
+
+        if not new_group_id:
+            return await event.edit("❌ **Failure:** Group ban gaya par ID nahi mili.")
+
+        # 𝖲𝖠𝖪𝖳𝖨: Sync ke liye wait
+        await asyncio.sleep(2.5)
 
         now = datetime.now()
         time_str = now.strftime("%H:%M:%S")
         date_str = now.strftime("%d-%m-%Y")
 
-        # Naye group mein pehla message bhejna
         welcome_text = (
             f"✅ **Group Created Successfully!**\n\n"
             f"◈ **Name:** `{group_name}`\n"
@@ -77,7 +99,7 @@ async def create_handler(event):
             f"**Powered By DARK-USERBOT** 💀"
         )
         
-        # 𝖲𝖠𝖪𝖳𝖨: Peer check ke saath message bhejna
+        # 𝖲𝖠𝖪𝖳𝖨: Naye group mein message bhejna
         await client.send_message(new_group_id, welcome_text)
 
         await event.edit(f"✅ **Group `{group_name}` Created!**\nID: `{new_group_id}`")
@@ -88,4 +110,4 @@ async def create_handler(event):
 # --- SETUP FUNCTION ---
 async def setup(client):
     client.add_event_handler(create_handler)
-    
+                
