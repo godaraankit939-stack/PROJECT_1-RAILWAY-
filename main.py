@@ -1,5 +1,7 @@
 import os, asyncio
 import sys
+import glob
+import importlib
 from telethon import TelegramClient, events, Button
 from telethon.sessions import StringSession
 from telethon.errors import (
@@ -166,16 +168,44 @@ async def panel(event):
         )
         await event.reply(msg)
 
-# --- ASYNC LOOP FIX ---
-async def run_manager():
+# --- 🚀 MULTI-USERBOT LOADING LOGIC ---
+async def start_userbots():
+    sessions = await get_all_sessions()
+    print(f"🔎 Found {len(sessions)} sessions. Starting Multi-Userbots...")
+    
+    for session_str in sessions:
+        try:
+            # Har session ke liye alag client
+            client = TelegramClient(StringSession(session_str), API_ID, API_HASH)
+            await client.connect()
+            
+            if await client.is_user_authorized():
+                # Plugins load karna is client ke liye
+                for file in glob.glob("plugins/*.py"):
+                    name = file.replace(".py", "").replace("/", ".").replace("\\", ".")
+                    importlib.import_module(name)
+                
+                print(f"✅ Userbot Started for ID: {(await client.get_me()).id}")
+            else:
+                print(f"⚠️ Session expired/invalid, skipping.")
+        except Exception as e:
+            print(f"⚠️ Error starting userbot: {e}")
+
+# --- MAIN RUNNER ---
+async def run_everything():
+    # 1. Start Manager Bot
     await bot.start(bot_token=BOT_TOKEN)
-    print("Manager Bot Started...")
+    print("📢 Manager Bot is Online!")
+
+    # 2. Start all Userbots from Database
+    await start_userbots()
+
+    # 3. Block until disconnected
     await bot.run_until_disconnected()
 
 if __name__ == "__main__":
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    loop = asyncio.get_event_loop()
     try:
-        loop.run_until_complete(run_manager())
+        loop.run_until_complete(run_everything())
     except KeyboardInterrupt:
         pass
