@@ -21,11 +21,11 @@ async def antipm_handler(event):
     if await get_maintenance() and event.sender_id != OWNER_ID and not await is_sudo(event.sender_id):
         return
 
-    # AntiPM Status Check
+    # AntiPM Status Check (Database se fetch)
     if not await get_antipm_status(): 
         return 
         
-    # Exclusions: Owner, Bots, Sudo users, and Contacts (Manual check usually needed for contacts)
+    # Exclusions: Owner, Bots, Sudo users
     if event.sender_id == me.id or event.is_bot or await is_sudo(event.sender_id): 
         return
         
@@ -35,7 +35,7 @@ async def antipm_handler(event):
 
     # --- LOGIC: WARN OR BLOCK ---
     if not await is_warned_in_db(event.sender_id):
-        # FIRST WARNING (Jaisa tumne laya tha)
+        # FIRST WARNING
         warn_text = (
             "**⌬ 𝖠𝖭𝖳𝖨-𝖯𝖬 𝖲𝖤𝖢𝖴𝖱𝖨𝖳𝖸** 🛡️\n\n"
             "`Unauthorized Access Detected!`\n"
@@ -55,19 +55,23 @@ async def antipm_handler(event):
             "**Goodbye!** 👋"
         )
         await event.reply(block_text)
-        await client(functions.contacts.BlockRequest(id=event.sender_id))
-        await delete_warned_user(event.sender_id)
+        try:
+            await client(functions.contacts.BlockRequest(id=event.sender_id))
+            await delete_warned_user(event.sender_id)
+        except Exception:
+            pass
 
 # --- 2. ANTIPM COMMAND HANDLER ---
 @events.register(events.NewMessage(outgoing=True, pattern=r"\.(antipm|approve|disapprove) ?(.*)"))
 async def antipm_cmd_handler(event):
     # 🛡️ COMMAND SECURITY
-    if await is_banned(event.sender_id): return
+    if await is_banned(event.sender_id): 
+        return
     
     if await get_maintenance() and event.sender_id != OWNER_ID:
         return await event.edit("🛠 **Maintenance Mode is ON.**")
     
-    # Authorization Check
+    # Master Authorization Check
     if event.sender_id != OWNER_ID and not await is_sudo(event.sender_id):
         return
 
@@ -87,19 +91,22 @@ async def antipm_cmd_handler(event):
     elif cmd == "approve":
         reply = await event.get_reply_message()
         target = reply.sender_id if reply else args
-        if not target: return await event.edit("`Reply to a user or give ID.`")
+        if not target: 
+            return await event.edit("`Reply to a user or give ID/Username.`")
         await approve_user(target)
         await event.edit(f"✅ **User {target} Approved.**")
         
     elif cmd == "disapprove":
         reply = await event.get_reply_message()
         target = reply.sender_id if reply else args
-        if not target: return await event.edit("`Reply to a user or give ID.`")
+        if not target: 
+            return await event.edit("`Reply to a user or give ID/Username.`")
         await disapprove_user(target)
         await event.edit(f"❌ **User {target} Disapproved.**")
 
 # --- SETUP FUNCTION ---
 async def setup(client):
+    # Registering handlers using the client instance
     client.add_event_handler(antipm_handler)
     client.add_event_handler(antipm_cmd_handler)
-            
+        
