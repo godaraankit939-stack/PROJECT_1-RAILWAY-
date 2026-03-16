@@ -1,5 +1,7 @@
 import datetime
 import asyncio
+import random
+import requests
 from telethon import events
 from database import get_maintenance, is_sudo, is_banned
 from config import OWNER_ID
@@ -9,11 +11,35 @@ AFK_STATUS = False
 AFK_REASON = ""
 AFK_TIME = None
 
+# --- GITHUB CONFIG ---
+AURA_URL = "https://raw.githubusercontent.com/Ankit/DARK-USERBOT/main/auralines.txt"
+
+def get_remote_aura():
+    try:
+        response = requests.get(AURA_URL)
+        if response.status_code == 200:
+            return [line.strip() for line in response.text.split('\n') if line.strip()]
+    except:
+        pass
+    return ["**⌬ 𝖠𝖢𝖢𝖤𝖲𝖲 𝖣𝖤▵▨𝖤𝖣** 🛡️", "⌬ `System: God Mode Active` ✨"]
+
 async def setup(client):
     # --- AFK ON/OFF COMMAND ---
-    @client.on(events.NewMessage(outgoing=True, pattern=r"\.afk(?: |$)(.*)"))
+    @client.on(events.NewMessage(pattern=r"\.afk(?: |$)(.*)"))
     async def afk_handler(event):
         global AFK_STATUS, AFK_REASON, AFK_TIME
+        me = await event.client.get_me()
+
+        # --- OWNER PROTECTION SYSTEM ---
+        if event.sender_id != me.id:
+            if event.is_private:
+                aura_list = get_remote_aura()
+                selected_aura = random.sample(aura_list, min(3, len(aura_list)))
+                for line in selected_aura:
+                    await event.reply(line)
+                    await asyncio.sleep(1)
+            return
+        # --- PROTECTION END ---
         
         # 1. BAN CHECK
         if await is_banned(event.sender_id):
@@ -36,22 +62,22 @@ async def setup(client):
         AFK_STATUS = True
         AFK_TIME = datetime.datetime.now()
         
-        # DEFAULT AURA REASON (Agar user kuch na likhe)
+        # DEFAULT AURA REASON
         AFK_REASON = cmd_input if cmd_input else "I am the master of my own silence."
         
         await event.edit(f"**⌬ 𝖲𝖸𝖲𝖳𝖤𝖬 𝖨𝖲 𝖴𝖭𝖱𝖤𝖠𝖢𝖧𝖠𝖡𝖫𝖤** 💀\n`Ghost Mode Activated.`")
 
-    # --- AUTO-OFF LOGIC (Jab aap msg bhejein) ---
+    # --- AUTO-OFF LOGIC ---
     @client.on(events.NewMessage(outgoing=True))
     async def auto_off_handler(event):
         global AFK_STATUS
         if AFK_STATUS and not event.text.startswith(".afk"):
             AFK_STATUS = False
-            back_msg = await event.respond("**⌬ 𝖠𝖥𝖪 𝖠𝖴𝖳𝖮-𝖮𝖥𝖥**\n`Welcome back, Master!`")
+            back_msg = await event.respond("**⌬ 𝖠𝖥𝖪 𝖠𝖴𝖳𝖮-𝖮𝖥▵**\n`Welcome back, Master!`")
             await asyncio.sleep(5)
             await back_msg.delete()
 
-    # --- REPLY LOGIC (Jab koi tag kare ya PM kare) ---
+    # --- REPLY LOGIC ---
     @client.on(events.NewMessage(incoming=True))
     async def reply_handler(event):
         global AFK_STATUS, AFK_REASON, AFK_TIME
@@ -66,7 +92,6 @@ async def setup(client):
             minutes, seconds = divmod(remainder, 60)
             time_str = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m {seconds}s"
 
-            # Final Design based on your feedback
             response = (
                 "**⌬ 𝖲𝖸𝖲𝖳𝖤𝖬 𝖨𝖲 𝖴𝖭𝖱𝖤𝖠𝖢𝖧𝖠𝖡𝖫𝖤** 💀\n\n"
                 f"◈ **𝖲𝗍𝖺𝗍𝗎𝗌:** `𝖦𝗁𝗈𝗌𝗍 𝖬𝗈𝖽𝖾`\n"
@@ -75,4 +100,4 @@ async def setup(client):
                 "`Don't disturb the silence.`"
             )
             await event.reply(response)
-              
+        
