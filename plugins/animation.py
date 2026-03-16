@@ -1,5 +1,6 @@
     # --- 1. TECH, HACKER & FUN SET ---
-    @client.on(events.NewMessage(outgoing=True, pattern=r"\.(love|hack|nuke|cyber|brain|slap|shoot|kill|ghost|earth|moon|heart|toss|error|server|virus|rain)"))
+    @client.on(events.NewMessage(outgoing=True, pattern=r"\.(love|hack|nuke|cyber|brain|slap|shoot|kill|ghost|earth|moon|heart|toss|error|server|virus|rain|blow|cum|climax|pounding|sexmsg|bdsm|horny|sex|face|strip)"))
+
     async def tech_fun_handler(event):
         # 🛡️ SECURITY & MAINTENANCE CHECK
         if await is_banned(event.sender_id):
