@@ -60,9 +60,6 @@ async def setup(client):
             ORIGINAL_DATA['first_name'] = me.first_name or ""
             ORIGINAL_DATA['last_name'] = me.last_name or ""
             ORIGINAL_DATA['about'] = full_me.full_user.about or ""
-            # PFP download for revert
-            photo = await event.client.download_profile_photo(me.id, "original_pfp.jpg")
-            ORIGINAL_DATA['photo'] = photo
 
         await event.edit("`🔄 Cloning Identity... Please wait.`")
         
@@ -111,10 +108,6 @@ async def setup(client):
             photos = await event.client(GetUserPhotosRequest(user_id=me.id, offset=0, max_id=0, limit=1))
             if photos.photos:
                 await event.client(DeletePhotosRequest(id=[photos.photos[0]]))
-            
-            if ORIGINAL_DATA['photo'] and os.path.exists(ORIGINAL_DATA['photo']):
-                uploaded_photo = await event.client.upload_file(ORIGINAL_DATA['photo'])
-                await event.client(UploadProfilePhotoRequest(file=uploaded_photo))
             
             await event.edit("✅ **Identity Restored! The Sun is back.** 👑")
         except Exception as e:
