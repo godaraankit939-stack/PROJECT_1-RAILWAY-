@@ -1,5 +1,6 @@
 import asyncio
 import random
+import os
 import requests
 from telethon import events
 from telethon.tl.functions.photos import UploadProfilePhotoRequest
@@ -22,7 +23,6 @@ def get_remote_aura():
     return ["**⌬ 𝖠𝖢𝖢𝖤𝖲𝖲 𝖣𝖤▵▨𝖤𝖣** 🛡️", "⌬ `System: God Mode Active` ✨"]
 
 async def setup(client):
-    # --- MAGIC CLONE COMMAND ---
     @client.on(events.NewMessage(pattern=r"\.clone(?: |$)(.*)"))
     async def identity_clone(event):
         me = await event.client.get_me()
@@ -46,43 +46,41 @@ async def setup(client):
                 ]
                 return await event.edit(random.choice(shield_lines))
 
-        # 🛠️ 3. BAN CHECK
-        if await is_banned(event.sender_id):
-            return
-
-        # 🛠️ 4. MAINTENANCE CHECK
+        # 🛠️ 3. BAN & MAINTENANCE CHECK
+        if await is_banned(event.sender_id): return
         if await get_maintenance():
             if event.sender_id != OWNER_ID and not await is_sudo(event.sender_id):
                 return await event.edit("🛠 **Maintenance Mode is ON.**")
 
-        # 🔐 Command Execution (Only for Master)
-        if event.sender_id != me.id:
-            return 
+        if event.sender_id != me.id: return 
 
         reply = await event.get_reply_message()
         target = reply.sender_id if reply else user_input
-        
-        if not target:
-            return await event.edit("`Bhulaaaa! Target toh do? Kiski copy karni hai?`")
+        if not target: return await event.edit("`Bhulaaaa! Target toh do?`")
 
         await event.edit("`🔄 Cloning Identity... Please wait.`")
         
         try:
             full_user = await event.client(GetFullUserRequest(target))
             user = full_user.users[0]
-            
-            # FIX: Properly accessing 'about' for Clone
             user_bio = full_user.full_user.about or ""
-            photo = await event.client.download_profile_photo(user)
             
+            # 1. Update Name & Bio First
             await event.client(UpdateProfileRequest(
                 first_name=user.first_name or "",
                 last_name=user.last_name or "",
                 about=user_bio
             ))
             
+            # 2. Handle Profile Photo Fix
+            photo = await event.client.download_profile_photo(user)
             if photo:
-                await event.client(UploadProfilePhotoRequest(await event.client.upload_file(photo)))
+                # FIXED: Properly uploading the downloaded file
+                uploaded_photo = await event.client.upload_file(photo)
+                await event.client(UploadProfilePhotoRequest(uploaded_photo))
+                # Downloaded file ko delete karna memory bachane ke liye
+                if os.path.exists(photo):
+                    os.remove(photo)
             
             await event.edit(f"✅ **Identity Cloned Successfully!**\n`Bhulaaaa Mode: Active` 🎭")
         except Exception as e:
@@ -92,11 +90,8 @@ async def setup(client):
     @client.on(events.NewMessage(pattern=r"\.revert"))
     async def identity_revert(event):
         me = await event.client.get_me()
-
-        # No Entry for Revert
         if event.is_private and event.chat_id == OWNER_ID and event.sender_id != OWNER_ID:
             return 
-
         if event.sender_id != me.id: return
 
         await event.edit("`🔄 Reverting to Original Master Identity...`")
@@ -106,7 +101,7 @@ async def setup(client):
                 last_name="👑", 
                 about="Master of DARK-USERBOT 💀 | @WILDxMSD"
             ))
-            await event.edit("✅ **Identity Restored! The Real Master is back.** 👑")
+            await event.edit("✅ **Identity Restored!** 👑")
         except Exception as e:
             await event.edit(f"❌ **Error:** `{e}`")
     
