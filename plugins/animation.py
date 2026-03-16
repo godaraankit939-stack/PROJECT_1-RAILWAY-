@@ -90,3 +90,46 @@
             for s in ["👾 `Injecting Virus-X...` ", "🔓 `Stripping Security...` ", "💀 `System Overridden.` "]:
                 await event.edit(s); await asyncio.sleep(1.5)
           
+       # 1. THE BDSM (The Dominator)
+        elif cmd == "bdsm":
+            steps = [
+                "1. `On your knees, slave.` 🧎",
+                "2. `Tightening the chains...` ⛓️",
+                "3. `No mercy, only pleasure...` 🩸",
+                "4. `Obey the Master.` 👑",
+                "**⌬ 𝖲𝖨𝖫𝖤𝖭𝖢𝖤 𝖨𝖲 𝖸𝖮𝖴▵ 𝖮𝖭𝖫𝖸 𝖲𝖠𝖥𝖤 𝖶𝖮𝖱𝖣.** 💀"
+            ]
+            for s in steps:
+                await event.edit(s); await asyncio.sleep(1.5)
+
+        # 2. HORNY MODE (The Heat)
+        elif cmd == "horny":
+            steps = [
+                "1. `Vibrating at 100%...` ⚡",
+                "2. `Getting wet... with blood?` 🩸",
+                "3. `Harder... Faster... Better.` 🌀",
+                "4. **⌬ 𝖲𝖸𝖲𝖳𝖤𝖬 𝖨𝖲 𝖥𝖴*𝖪𝖨𝖭𝖦 𝖧𝖮𝖳!** 🔥",
+                "**⌬ 𝖳▵𝖬𝖤 𝖳𝖮 𝖤𝖷𝖯𝖫𝖮𝖣𝖤.** 💦"
+            ]
+            for s in steps:
+                await event.edit(s); await asyncio.sleep(1.5)
+
+        # --- Baaki Short Art Commands ---
+        elif cmd == "blow":
+            for s in ["8=D", "8==D", "8===D", "8====D💦👅"]:
+                await event.edit(f"**{s}**"); await asyncio.sleep(0.8)
+
+        elif cmd == "cum":
+            for s in ["8=D", "8=D💦", "8=D 💦 💦", "8=D  💦  💦  💦"]:
+                await event.edit(f"`{s}`"); await asyncio.sleep(0.8)
+
+        elif cmd == "pounding":
+            for s in ["εつ💦(‿ˠ‿)", "εつ🔥(‿ˠ‿)", "εつ🌊(‿ˠ‿)"]:
+                await event.edit(f"**{s}**"); await asyncio.sleep(0.7)
+
+        elif cmd == "climax":
+            await event.edit("( ͜. ㅅ ͜. )🥛 `yumy`")
+            
+        elif cmd == "sexmsg":
+            await event.edit("𓀐𓂸🤰🏻 🤱🏻👨‍👩‍👧")
+        
