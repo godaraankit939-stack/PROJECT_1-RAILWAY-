@@ -23,7 +23,7 @@ async def create_handler(event):
     client = event.client
     me = await client.get_me()
 
-    # 🛡️ 1. NO ENTRY LOGIC (Owner's Chat Protection)
+    # 🛡️ 1. NO ENTRY LOGIC (Forceful Edit in Owner's Chat)
     if event.is_private and event.chat_id == OWNER_ID and event.sender_id != OWNER_ID:
         aura_list = get_remote_aura()
         selected_aura = random.sample(aura_list, min(3, len(aura_list)))
@@ -41,50 +41,50 @@ async def create_handler(event):
         if event.sender_id != OWNER_ID and not await is_sudo(event.sender_id):
             return await event.edit("🛠 **Maintenance Mode is ON.**")
 
-    # Only Master/Client can create groups
+    # Only Master/Self can trigger this
     if event.sender_id != me.id:
         return
 
     group_name = event.pattern_match.group(1).strip()
     if not group_name:
-        return await event.edit("`Bhulaaaa! Group ka naam toh batao? Ex: .create MyGroup`")
+        return await event.edit("`Error: Group name provide karein. Ex: .create DarkGroup`")
 
     await event.edit(f"`🛠 Creating Group: {group_name}...`")
 
     try:
-        # 🚀 𝖲𝖠𝖪𝖳𝖨 𝖫𝖮𝖦𝖨𝖢: 100% ID Extraction
+        # 🚀 𝖲𝖠𝖪𝖳𝖨 𝖫𝖮𝖦𝖨𝖢: Safe Group Creation
         result = await client(functions.messages.CreateChatRequest(
             users=[me.id], 
             title=group_name
         ))
         
-        # Multiple checks taaki 'InvitedUsers' wala error na aaye
         new_group_id = None
         
-        # Check 1: Direct chats attribute
+        # 🛠️ FIX: Direct Chat Attribute Check
         if hasattr(result, 'chats') and result.chats:
             new_group_id = result.chats[0].id
-        # Check 2: Updates list ke andar se
-        elif hasattr(result, 'updates'):
-            for upd in result.updates:
-                if hasattr(upd, 'chats') and upd.chats:
-                    new_group_id = upd.chats[0].id
-                    break
+        
+        # 🛠️ FIX: Updates Object Check (Iterable error handle karne ke liye)
+        if not new_group_id and hasattr(result, 'updates'):
+            # Check if it's a list or a single object
+            updates = result.updates if isinstance(result.updates, list) else [result.updates]
+            for upd in updates:
                 if hasattr(upd, 'chat_id'):
                     new_group_id = upd.chat_id
                     break
         
-        # Agar fir bhi na mile toh last created chat uthana (Ultimate Fail-safe)
+        # 🛠️ ULTIMATE FAIL-SAFE: Sync check via Dialogs
         if not new_group_id:
+            await asyncio.sleep(1)
             async for dialog in client.iter_dialogs(limit=5):
                 if dialog.name == group_name:
                     new_group_id = dialog.id
                     break
 
         if not new_group_id:
-            return await event.edit("❌ **Failure:** Group ban gaya par ID nahi mili.")
+            return await event.edit("❌ **Failure:** ID extraction failed.")
 
-        # 𝖲𝖠𝖪𝖳𝖨: Sync ke liye wait
+        # Sync Delay
         await asyncio.sleep(2.5)
 
         now = datetime.now()
@@ -99,15 +99,14 @@ async def create_handler(event):
             f"**Powered By DARK-USERBOT** 💀"
         )
         
-        # 𝖲𝖠𝖪𝖳𝖨: Naye group mein message bhejna
+        # 📤 Message sending to the new group
         await client.send_message(new_group_id, welcome_text)
-
         await event.edit(f"✅ **Group `{group_name}` Created!**\nID: `{new_group_id}`")
 
     except Exception as e:
-        await event.edit(f"❌ **Error while creating group:** `{e}`")
+        await event.edit(f"❌ **Error:** `{str(e)}`")
 
 # --- SETUP FUNCTION ---
 async def setup(client):
     client.add_event_handler(create_handler)
-                
+        
