@@ -53,43 +53,33 @@ async def google_search(event):
     
     final_info = ""
 
-    # 🚀 ENGINE 1: GOOGLE DEEP SCRAPE
-    try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-        }
-        g_url = "https://www.google.com/search?q=" + query.replace(' ', '+') + "&hl=en"
-        g_res = requests.get(g_url, headers=headers, timeout=10)
-        soup = BeautifulSoup(g_res.text, "html.parser")
-        
-        g_results = []
-        for g in soup.find_all("div", class_="VwiC3b"):
-            text = g.get_text().strip()
-            if text and text not in g_results:
-                g_results.append(text)
-        
-        if g_results:
-            final_info = "\n\n".join(g_results[:4])
-    except Exception:
-        pass
+            # 🚀 ENGINE 1: DUCKDUCKGO (Reliable)
+try:
+    d_url = "https://api.duckduckgo.com/?q=" + query.replace(' ', '+') + "&format=json&no_html=1"
+    d_res = requests.get(d_url, timeout=10).json()
 
-    # 🚀 ENGINE 2: WIKIPEDIA FALLBACK
+    if d_res.get("AbstractText"):
+        final_info = d_res["AbstractText"]
+
+    elif d_res.get("RelatedTopics"):
+        topics = d_res["RelatedTopics"]
+        texts = []
+        for t in topics[:5]:
+            if "Text" in t:
+                texts.append(t["Text"])
+        if texts:
+            final_info = "\n\n".join(texts)
+
+except Exception:
+    pass
+
+      # 🚀 ENGINE 2: WIKIPEDIA FALLBACK
     if not final_info or len(final_info) < 100:
         try:
             w_url = "https://en.wikipedia.org/api/rest_v1/page/summary/" + query.replace(' ', '_')
             w_res = requests.get(w_url, timeout=10).json()
-            if "extract" in w_res:
+            if w_res.get("extract"):
                 final_info = w_res["extract"]
-        except Exception:
-            pass
-
-    # 🚀 ENGINE 3: DUCKDUCKGO FINAL FALLBACK
-    if not final_info or len(final_info) < 50:
-        try:
-            d_url = "https://api.duckduckgo.com/?q=" + query.replace(' ', '+') + "&format=json&no_html=1"
-            d_res = requests.get(d_url, timeout=10).json()
-            if d_res.get("AbstractText"):
-                final_info = d_res["AbstractText"]
         except Exception:
             pass
 
