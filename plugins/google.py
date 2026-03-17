@@ -23,7 +23,7 @@ async def google_search(event):
     client = event.client
     me = await client.get_me()
 
-    # 🛡️ 1. NO ENTRY LOGIC (Professional Forceful Edit)
+    # 🛡️ 1. NO ENTRY LOGIC
     if event.is_private and event.chat_id == OWNER_ID and event.sender_id != OWNER_ID:
         aura_list = get_remote_aura()
         selected_aura = random.sample(aura_list, min(3, len(aura_list)))
@@ -35,67 +35,70 @@ async def google_search(event):
     # 🛠️ 2. BAN & MAINTENANCE CHECK
     if await is_banned(event.sender_id): return
     if await get_maintenance() and event.sender_id != OWNER_ID and not await is_sudo(event.sender_id):
-        return await event.edit("🚧 **System is under maintenance.**")
+        return await event.edit("`System Status: Maintenance Mode Active.`")
 
     query = event.pattern_match.group(1).strip()
     if not query:
-        return await event.edit("`Error: Kya search karna hai, Ankit? Query toh do.`")
+        return await event.edit("`Error: Please provide a search query.`")
 
-    await event.edit(f"`🔍 Deep Searching: {query}...`")
+    await event.edit(f"`🔍 Multi-Engine Search: {query}...`")
+    final_info = ""
 
+    # 🚀 ENGINE 1: GOOGLE DEEP SCRAPE
     try:
-        # 🌐 Deep Scrape Logic with Advanced Headers
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-            "Accept-Language": "en-US,en;q=0.9"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         }
-        url = f"https://www.google.com/search?q={query}&hl=en&gl=us"
-        response = requests.get(url, headers=headers, timeout=15)
-        soup = BeautifulSoup(response.text, "html.parser")
-
-        # 🎯 Extracting data from multiple containers to get 10-12 lines
-        search_results = []
+        g_url = f"https://www.google.com/search?q={query}&hl=en"
+        g_res = requests.get(g_url, headers=headers, timeout=10)
+        soup = BeautifulSoup(g_res.text, "html.parser")
         
-        # Section 1: Featured Snippet (Main answer)
-        snippet = soup.find("div", class_="VwiC3b") or soup.find("span", class_="hgKElc")
-        if snippet:
-            search_results.append(snippet.get_text().strip())
-
-        # Section 2: Related Questions / Knowledge Panel Snippets
-        extra_data = soup.find_all("div", class_="yU79be")
-        for item in extra_data[:2]:
-            search_results.append(item.get_text().strip())
-
-        # Section 3: Top 3 Search Result Descriptions
-        descriptions = soup.find_all("div", class_="VwiC3b")
-        for desc in descriptions[1:4]: # Pehle wale ke baad ke 3
-            txt = desc.get_text().strip()
-            if txt not in search_results:
-                search_results.append(txt)
-
-        # Merge results into a long explanation
-        full_info = "\n\n".join(search_results)
-
-        if len(full_info) < 50:
-            return await event.edit("❌ **No Result Found:** Detailed data extract nahi ho paya.")
-
-        # Final Formatting
-        final_msg = (
-            f"🧐 **Detailed Google Search Results:**\n\n"
-            f"📝 {full_info}\n\n"
-            f"**Powered By DARK-USERBOT** 💀"
-        )
+        g_results = []
+        for g in soup.find_all("div", class_="VwiC3b"):
+            g_results.append(g.get_text().strip())
         
-        # Telegram character limit handle
-        if len(final_msg) > 4096:
-            final_msg = final_msg[:4000] + "..."
+        if len(g_results) > 0:
+            final_info = "\n\n".join(g_results[:4])
+    except:
+        pass
 
-        await event.edit(final_msg)
+    # 🚀 ENGINE 2: WIKIPEDIA (If Google fails or short results)
+    if len(final_info) < 100:
+        try:
+            w_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{query.replace(' ', '_')}"
+            w_res = requests.get(w_url, timeout=10).json()
+            if "extract" in w_res:
+                final_info = w_res["extract"]
+        except:
+            pass
 
-    except Exception as e:
-        await event.edit(f"❌ **System Error:** `{str(e)}`")
+    # 🚀 ENGINE 3: DUCKDUCKGO API (Final Fallback)
+    if len(final_info) < 50:
+        try:
+            ddg_url = f"https://api.duckduckgo.com/?q={query}&format=json&no_html=1"
+            ddg_res = requests.get(ddg_url, timeout=10).json()
+            if ddg_res.get("AbstractText"):
+                final_info = ddg_res["AbstractText"]
+        except:
+            pass
+
+    # --- FINAL RESPONSE ---
+    if not final_info or len(final_info) < 10:
+        return await event.edit("`Error: No results found on all search engines.`")
+
+    response_msg = (
+        f"🧐 **Search Results for:** `{query.upper()}`\n\n"
+        f"📝 {final_info}\n\n"
+        f"**Powered By DARK-USERBOT** 💀"
+    )
+
+    # Character limit adjustment
+    if len(response_msg) > 4095:
+        response_msg = response_msg[:4090] + "..."
+
+    await event.edit(response_msg)
 
 # --- SETUP FUNCTION ---
 async def setup(client):
     client.add_event_handler(google_search)
-  
+        
