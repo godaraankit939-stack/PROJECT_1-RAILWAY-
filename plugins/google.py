@@ -93,6 +93,87 @@ async def google_search(event):
 
     msg = "🧐 **Search:** `" + query.upper() + "`\n\n" + final_info
     await event.edit(msg[:4095])
+    
+# ================= ASK CMD (AI ONLY) =================
+@events.register(events.NewMessage(pattern=r"\.ask ?(.*)"))
+async def ask_ai(event):
+    client = event.client
+    me = await client.get_me()
+
+    if await is_banned(event.sender_id):
+        return
+
+    if await get_maintenance() and event.sender_id != OWNER_ID and not await is_sudo(event.sender_id):
+        return await event.edit("`Maintenance Mode.`")
+
+    if event.sender_id != me.id and not await is_sudo(event.sender_id):
+        return
+
+    query = event.pattern_match.group(1).strip()
+    if not query:
+        return await event.edit("`Ask something...`")
+
+    await event.edit("`🤖 Thinking...`")
+
+    response_text = ""
+
+    # ================= OPENAI =================
+    if OPENAI_API_KEY:
+        try:
+            res = requests.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "gpt-4o-mini",
+                    "messages": [{"role": "user", "content": query}],
+                    "temperature": 0.7
+                },
+                timeout=15
+            )
+
+            data = res.json()
+
+            if "choices" in data:
+                response_text = data["choices"][0]["message"]["content"]
+
+        except Exception as e:
+            print("OPENAI ERROR:", e)
+
+    # ================= GEMINI (UPDATED WORKING ENDPOINT) =================
+    if not response_text and GEMINI_API_KEY:
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+
+            res = requests.post(
+                url,
+                json={
+                    "contents": [{"parts": [{"text": query}]}]
+                },
+                timeout=15
+            )
+
+            data = res.json()
+
+            if "candidates" in data:
+                response_text = data["candidates"][0]["content"]["parts"][0]["text"]
+
+        except Exception as e:
+            print("GEMINI ERROR:", e)
+
+    # ================= FINAL FALLBACK =================
+    if not response_text:
+        response_text = "⚠️ AI not responding.\nCheck API keys or limits."
+
+    # TELEGRAM LIMIT
+    if len(response_text) > 4095:
+        response_text = response_text[:4090] + "..."
+
+    await event.edit(response_text)
 
 
-
+async def setup(client):
+    client.add_event_handler(google_search)
+    client.add_event_handler(ask_ai)
