@@ -12,6 +12,7 @@ AURA_URL = "https://raw.githubusercontent.com/Ankit/DARK-USERBOT/main/auralines.
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
+
 def get_remote_aura():
     try:
         response = requests.get(AURA_URL, timeout=5)
@@ -21,7 +22,8 @@ def get_remote_aura():
         pass
     return ["**⌬ ACCESS DENIED 🛡️**"]
 
-# ================= GOOGLE CMD (UNCHANGED) =================
+
+# ================= GOOGLE CMD =================
 @events.register(events.NewMessage(pattern=r"\.google ?(.*)"))
 async def google_search(event):
     client = event.client
@@ -51,50 +53,57 @@ async def google_search(event):
 
     final_info = ""
 
+    # DUCKDUCKGO
     try:
-            d_url = "https://api.duckduckgo.com/?q=" + query.replace(' ', '+') + "&format=json"
-            d_res = requests.get(d_url, timeout=10).json()
+        d_url = "https://api.duckduckgo.com/?q=" + query.replace(' ', '+') + "&format=json"
+        d_res = requests.get(d_url, timeout=10).json()
 
-            if d_res.get("Answer"):
-                final_info = d_res["Answer"]
-            elif d_res.get("AbstractText"):
-                final_info = d_res["AbstractText"]
-        except:
-            pass
+        if d_res.get("Answer"):
+            final_info = d_res["Answer"]
+        elif d_res.get("AbstractText"):
+            final_info = d_res["AbstractText"]
+    except:
+        pass
 
+    # WIKIPEDIA
     if not final_info:
         try:
             w_url = "https://en.wikipedia.org/api/rest_v1/page/summary/" + query.replace(' ', '_')
             w_res = requests.get(w_url, timeout=10).json()
+
             if w_res.get("extract"):
                 final_info = w_res["extract"]
         except:
             pass
-            
+
+    # GOOGLE SCRAPE
+    if not final_info:
         try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        url = "https://www.google.com/search?q=" + query.replace(" ", "+")
-        res = requests.get(url, headers=headers, timeout=10)
-        soup = BeautifulSoup(res.text, "html.parser")
+            headers = {"User-Agent": "Mozilla/5.0"}
+            url = "https://www.google.com/search?q=" + query.replace(" ", "+")
+            res = requests.get(url, headers=headers, timeout=10)
 
-        results = []
-        for g in soup.find_all("div"):
-            text = g.get_text()
-            if len(text) > 50 and text not in results:
-                results.append(text)
+            soup = BeautifulSoup(res.text, "html.parser")
 
-        if results:
-            final_info = "\n\n".join(results[:3])
-    except:
-        pass
+            results = []
+            for g in soup.find_all("div"):
+                text = g.get_text()
+                if len(text) > 50 and text not in results:
+                    results.append(text)
+
+            if results:
+                final_info = "\n\n".join(results[:3])
+        except:
+            pass
 
     if not final_info:
         final_info = "Try refining your query."
 
     msg = "🧐 **Search:** `" + query.upper() + "`\n\n" + final_info
     await event.edit(msg[:4095])
-    
-# ================= ASK CMD (AI ONLY) =================
+
+
+# ================= ASK CMD =================
 @events.register(events.NewMessage(pattern=r"\.ask ?(.*)"))
 async def ask_ai(event):
     client = event.client
@@ -117,7 +126,7 @@ async def ask_ai(event):
 
     response_text = ""
 
-    # ================= OPENAI =================
+    # OPENAI
     if OPENAI_API_KEY:
         try:
             res = requests.post(
@@ -142,16 +151,14 @@ async def ask_ai(event):
         except Exception as e:
             print("OPENAI ERROR:", e)
 
-    # ================= GEMINI (UPDATED WORKING ENDPOINT) =================
+    # GEMINI
     if not response_text and GEMINI_API_KEY:
         try:
             url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
 
             res = requests.post(
                 url,
-                json={
-                    "contents": [{"parts": [{"text": query}]}]
-                },
+                json={"contents": [{"parts": [{"text": query}]}]},
                 timeout=15
             )
 
@@ -163,11 +170,9 @@ async def ask_ai(event):
         except Exception as e:
             print("GEMINI ERROR:", e)
 
-    # ================= FINAL FALLBACK =================
     if not response_text:
         response_text = "⚠️ AI not responding.\nCheck API keys or limits."
 
-    # TELEGRAM LIMIT
     if len(response_text) > 4095:
         response_text = response_text[:4090] + "..."
 
