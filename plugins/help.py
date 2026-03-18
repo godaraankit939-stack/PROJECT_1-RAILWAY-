@@ -65,7 +65,7 @@ async def setup(client):
         final_help = (
             HELP_MENU + 
             "\n**Type** `.help <cmd>` **to ignite the dark power of any command!** ⚡" +
-            "\n\n**⚠️ Under Maintenance:** `ask`, `antipm`, `tiny` (Coming Soon...)"
+            "\n\n**⚠️ Under Maintenance:** `ask`, `antipm`, `lyrics`, `tiny` (Coming Soon...)"
         )
         
         try:
