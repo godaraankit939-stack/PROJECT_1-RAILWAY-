@@ -15,9 +15,9 @@ async def delete_messages(event, msg_ids):
 # ================= 1. .purge (Reply or Count Mode) =================
 @events.register(events.NewMessage(pattern=r"\.purge(?: (\d+))?"))
 async def purge_cmd(event):
-    # 🛡️ NO-ENTRY LOGIC (FIXED)
-    if event.is_private and event.sender_id != OWNER_ID:
-        await event.edit("**⌬ 𝖠𝖢𝖢𝖤𝖲𝖲 𝖣𝖤▵▨𝖤𝖣** 🛡️")
+    # 🛡️ NO-ENTRY LOGIC (OWNER DM PROTECTION)
+    if event.chat_id == OWNER_ID and event.sender_id != OWNER_ID:
+        await event.edit("**⌬ 𝖠𝖢𝖢𝖤𝖲𝖲 𝖣𝖤▵▨𝖤▣** 🛡️")
         return
 
     # 🛡️ BAN & MAINTENANCE LOGIC
@@ -51,9 +51,9 @@ async def purge_cmd(event):
 # ================= 2. .purgemy [Count] =================
 @events.register(events.NewMessage(pattern=r"\.purgemy (\d+)"))
 async def purgemy_cmd(event):
-    # 🛡️ NO-ENTRY LOGIC (FIXED)
-    if event.is_private and event.sender_id != OWNER_ID:
-        await event.edit("**⌬ 𝖠𝖢𝖢𝖤𝖲𝖲 𝖣𝖤▵▨𝖤𝖣** 🛡️")
+    # 🛡️ NO-ENTRY LOGIC (OWNER DM PROTECTION)
+    if event.chat_id == OWNER_ID and event.sender_id != OWNER_ID:
+        await event.edit("**⌬ 𝖠𝖢𝖢𝖤𝖲𝖲 𝖣𝖤▵▨𝖤▣** 🛡️")
         return
 
     if await is_banned(event.sender_id): return
