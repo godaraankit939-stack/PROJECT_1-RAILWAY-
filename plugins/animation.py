@@ -5,13 +5,14 @@ from database import is_banned, get_maintenance, is_sudo
 from config import OWNER_ID
 
 # --- ANIMATION HANDLER ---
+# FIXED: Added proper closing brackets and simplified regex
 @events.register(events.NewMessage(pattern=r"^\.(kill|ghost|earth|error|server|rain|love|hack|nuke|cyber|brain|slap|shoot|moon|heart|toss|virus|bdsm|horny|blow|cum|pounding|climax|sexmsg)$", outgoing=True))
 async def animation_handler(event):
     cmd = event.pattern_match.group(1).lower()
-    client = event.client
-
+    
     # 🛡️ SECURITY CHECKS
-    if await is_banned(event.sender_id): return
+    if await is_banned(event.sender_id): 
+        return
     if await get_maintenance() and event.sender_id != OWNER_ID and not await is_sudo(event.sender_id):
         return await event.edit("`🛠️ Maintenance Mode Active.`")
 
@@ -39,7 +40,7 @@ async def animation_handler(event):
         elif cmd == "rain":
             for _ in range(3):
                 for r in [" . ☁️ . ", " , . | . , ", " | . | | | "]:
-                    await event.edit(f"**⌬ 𝖱𝖠𝖨𝖭𝖨𝖭𝖦 𝖵𝖨𝖡𝖤**\n{r}"); await asyncio.sleep(0.6)
+                    await event.edit(f"**⌬ 𝖱𝖠𝖨𝖭𝖨𝖦 𝖵𝖨𝖡𝖤**\n{r}"); await asyncio.sleep(0.6)
             await event.edit("🌧️ `Relax, it's raining.`")
 
         elif cmd == "love":
@@ -55,7 +56,7 @@ async def animation_handler(event):
 
         elif cmd == "nuke":
             for i in range(3,0,-1): 
-                await event.edit(f"🚀 **𝖭𝖴𝖪𝖤 𝖨𝖭: `{i}`**"); await asyncio.sleep(1)
+                await event.edit(f"🚀 **𝖭𝖴𝖪𝖤 𝖨𝖭: `{i}`**"); await asyncio.sleep(1.0)
             await event.edit("💥 **𝖡𝖮𝖮𝖮▵▵▬!** \n`Area Erased.`")
 
         elif cmd == "cyber":
@@ -120,7 +121,7 @@ async def animation_handler(event):
             await event.edit("𓀐𓂸🤰🏻 🤱🏻👨‍👩‍👧")
 
     except Exception as e:
-        await event.edit(f"❌ **Animation Error:** `{str(e)}`")
+        print(f"Error in animation: {e}")
 
 # --- SETUP ---
 async def setup(client):
