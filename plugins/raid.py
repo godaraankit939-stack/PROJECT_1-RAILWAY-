@@ -16,8 +16,9 @@ except ImportError:
 OWNER_LINE = "👑 **The King (MSD) is present. Lower your head and your commands.**"
 SUDO_LINE = "👑 **This is the Throne of MSD. Your commands mean nothing.**"
 
-# Tracking RRAID targets
+# Tracking RRAID targets and Global Flag for Raid
 RRAID_TARGETS = {}
+RAID_RUNNING = True
 
 # --- HELPER: SPG & TAG LOGIC ---
 async def get_target_and_check(event, target):
@@ -25,7 +26,7 @@ async def get_target_and_check(event, target):
         user = await event.client.get_entity(target)
         u_id = user.id
         # SPG Logic: Owner & Sudos are untouchable
-        if u_id == OWNER_ID or u_id == 12345678: # Replace with your real ID if needed
+        if u_id == OWNER_ID:
             await event.edit(OWNER_LINE)
             return None, None, True
         if u_id in SUDO_USERS:
@@ -40,59 +41,58 @@ async def get_target_and_check(event, target):
         await event.edit(f"`Error: {str(e)}`")
         return None, None, False
 
-# ================= 1. .raid (Invisible Tag + Random Gaali) =================
-@events.register(events.NewMessage(pattern=r"\.raid (.*)"))
+# ================= 1. .raid [count] [target] (Invisible Tag + Gaali) =================
+@events.register(events.NewMessage(pattern=r"\.raid (\d+) (.*)"))
 async def raid_cmd(event):
+    global RAID_RUNNING
+    # 🛡️ NO-ENTRY LOGIC
+    if event.is_private and event.sender_id != OWNER_ID:
+        await event.edit("**⌬ 𝖠𝖢𝖢𝖤𝖲𝖲 𝖣𝖤▵▨𝖤𝖣** 🛡️")
+        return
+
     if await is_banned(event.sender_id): return
     if await get_maintenance() and event.sender_id != OWNER_ID: return
 
-    args = event.pattern_match.group(1).split()
-    # Check for target and count
-    reply = await event.get_reply_message()
-    if reply and len(args) == 1:
-        target, count = reply.sender_id, args[0]
-    elif len(args) >= 2:
-        target, count = args[0], args[1]
-    else:
-        return await event.edit("`.raid [target] [count]`")
+    count = int(event.pattern_match.group(1))
+    target = event.pattern_match.group(2)
 
     u_id, mention, protected = await get_target_and_check(event, target)
     if protected or not u_id: return
 
     try:
-        count = int(count)
         await event.delete()
+        RAID_RUNNING = True
         # Random pick without immediate repeat
         lines = random.sample(RAID, min(count, len(RAID)))
         for line in lines:
-            # Format: Invisible Tag + Gaali
+            if not RAID_RUNNING: break
             await event.client.send_message(event.chat_id, f"{mention} {line}", parse_mode='html')
             await asyncio.sleep(0.7)
     except: pass
 
-# ================= 2. .sraid (Invisible Tag + Random Shayri) =================
-@events.register(events.NewMessage(pattern=r"\.sraid (.*)"))
+# ================= 2. .sraid [count] [target] (Invisible Tag + Shayri) =================
+@events.register(events.NewMessage(pattern=r"\.sraid (\d+) (.*)"))
 async def sraid_cmd(event):
+    global RAID_RUNNING
+    # 🛡️ NO-ENTRY LOGIC
+    if event.is_private and event.sender_id != OWNER_ID:
+        await event.edit("**⌬ 𝖠𝖢𝖢𝖤𝖲𝖲 𝖣𝖤▵▨𝖤𝖣** 🛡️")
+        return
+
     if await is_banned(event.sender_id): return
     
-    args = event.pattern_match.group(1).split()
-    reply = await event.get_reply_message()
-    if reply and len(args) == 1:
-        target, count = reply.sender_id, args[0]
-    elif len(args) >= 2:
-        target, count = args[0], args[1]
-    else:
-        return await event.edit("`.sraid [target] [count]`")
+    count = int(event.pattern_match.group(1))
+    target = event.pattern_match.group(2)
 
     u_id, mention, protected = await get_target_and_check(event, target)
     if protected or not u_id: return
 
     try:
-        count = int(count)
         await event.delete()
+        RAID_RUNNING = True
         lines = random.sample(SHAYERI, min(count, len(SHAYERI)))
         for line in lines:
-            # Clean \n for display but keep the break effect
+            if not RAID_RUNNING: break
             clean_line = line.strip()
             await event.client.send_message(event.chat_id, f"{mention}\n\n{clean_line}", parse_mode='html')
             await asyncio.sleep(0.7)
@@ -101,6 +101,11 @@ async def sraid_cmd(event):
 # ================= 3. .rraid (Ghost Hunter Mode) =================
 @events.register(events.NewMessage(pattern=r"\.rraid$"))
 async def rraid_on(event):
+    # 🛡️ NO-ENTRY LOGIC
+    if event.is_private and event.sender_id != OWNER_ID:
+        await event.edit("**⌬ 𝖠𝖢𝖢𝖤𝖲𝖲 𝖣𝖤▵▨𝖤𝖣** 🛡️")
+        return
+
     reply = await event.get_reply_message()
     if not reply: return await event.edit("`Reply to the victim to start RRAID!`")
     
@@ -117,8 +122,10 @@ async def rraid_off(event):
     if not t_id:
         args = event.text.split()
         if len(args) > 1:
-            user = await event.client.get_entity(args[1])
-            t_id = user.id
+            try:
+                user = await event.client.get_entity(args[1])
+                t_id = user.id
+            except: pass
 
     if t_id in RRAID_TARGETS:
         del RRAID_TARGETS[t_id]
@@ -129,23 +136,22 @@ async def rraid_off(event):
 # GHOST WATCHER (0.1s Reply Speed)
 @events.register(events.NewMessage())
 async def watcher(event):
-    if event.sender_id in RRAID_TARGETS:
+    if event.sender_id in RRAID_TARGETS and not event.text.startswith("."):
         line = random.choice(RAID)
         await event.reply(line)
 
 # ================= 4. .fsraid (Force Stop) =================
-@events.register(events.NewMessage(outgoing=True, pattern=r"\.fsraid$"))
+@events.register(events.NewMessage(pattern=r"\.fsraid$"))
 async def force_stop(event):
-    # This will stop current loops by restarting or global flag check
-    # Simplest way for userbot is to stop the current task
-    await event.edit("`All running raids have been terminated!`")
-    await asyncio.sleep(2)
+    global RAID_RUNNING
+    RAID_RUNNING = False
+    await event.edit("`🛑 All active Raid tasks have been force-stopped!`")
+    await asyncio.sleep(1.5)
     await event.delete()
-    # (In actual deployment, you'd use a global flag)
 
 # ================= SETUP =================
 async def setup(client):
     handlers = [raid_cmd, sraid_cmd, rraid_on, rraid_off, watcher, force_stop]
     for handler in handlers:
         client.add_event_handler(handler)
-                               
+            
