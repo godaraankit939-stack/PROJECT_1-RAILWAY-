@@ -20,6 +20,11 @@ SPAM_RUNNING = True
 @events.register(events.NewMessage(pattern=r"\.spam (\d+) (.*)"))
 async def fast_spam(event):
     global SPAM_RUNNING
+    # 🛡️ NO-ENTRY LOGIC (FIXED & WORKING)
+    if event.is_private and event.sender_id != OWNER_ID:
+        await event.edit("**⌬ 𝖠𝖢𝖢𝖤𝖲𝖲 𝖣𝖤▵▨𝖤𝖣** 🛡️")
+        return
+
     # 🛡️ BAN & MAINTENANCE LOGIC
     if await is_banned(event.sender_id): return
     if await get_maintenance() and event.sender_id != OWNER_ID: return
@@ -39,6 +44,11 @@ async def fast_spam(event):
 @events.register(events.NewMessage(pattern=r"\.dmspam (\d+) (.*)"))
 async def dm_spam_cmd(event):
     global SPAM_RUNNING
+    # 🛡️ NO-ENTRY LOGIC (FIXED & WORKING)
+    if event.is_private and event.sender_id != OWNER_ID:
+        await event.edit("**⌬ 𝖠𝖢𝖢𝖤𝖲𝖲 𝖣𝖤▵▨𝖤𝖣** 🛡️")
+        return
+
     # 🛡️ BAN & MAINTENANCE LOGIC
     if await is_banned(event.sender_id): return
     if await get_maintenance() and event.sender_id != OWNER_ID: return
@@ -95,4 +105,4 @@ async def setup(client):
     client.add_event_handler(fast_spam)
     client.add_event_handler(dm_spam_cmd)
     client.add_event_handler(force_stop_spam)
-  
+    
