@@ -15,25 +15,33 @@ async def delete_messages(event, msg_ids):
 # ================= 1. .purge (Reply or Count Mode) =================
 @events.register(events.NewMessage(pattern=r"\.purge(?: (\d+))?"))
 async def purge_cmd(event):
-    # 🛡️ SECURITY CHECKS
+    # 🛡️ NO-ENTRY LOGIC (FIXED)
+    if event.is_private and event.sender_id != OWNER_ID:
+        await event.edit("**⌬ 𝖠𝖢𝖢𝖤𝖲𝖲 𝖣𝖤▵▨𝖤𝖣** 🛡️")
+        return
+
+    # 🛡️ BAN & MAINTENANCE LOGIC
     if await is_banned(event.sender_id): return
     if await get_maintenance() and event.sender_id != OWNER_ID: return
 
     reply = await event.get_reply_message()
+    count = event.pattern_match.group(1)
     
-    # Mode A: Reply to a message (Purge from that msg to now)
+    # Mode A: Reply + Count or Just Reply
     if reply:
         msg_ids = []
-        async for msg in event.client.iter_messages(event.chat_id, min_id=reply.id - 1):
+        limit = int(count) if count else None
+        # Iterates from the replied message upwards
+        async for msg in event.client.iter_messages(event.chat_id, min_id=reply.id - 1, limit=limit):
             msg_ids.append(msg.id)
         await delete_messages(event, msg_ids)
     
-    # Mode B: Count based (.purge 10) - Mix Delete
-    elif event.pattern_match.group(1):
-        count = int(event.pattern_match.group(1))
+    # Mode B: Just Count based (.purge 10) - Mix Delete
+    elif count:
+        num = int(count)
         msg_ids = []
         # +1 to include the command message itself
-        async for msg in event.client.iter_messages(event.chat_id, limit=count + 1):
+        async for msg in event.client.iter_messages(event.chat_id, limit=num + 1):
             msg_ids.append(msg.id)
         await delete_messages(event, msg_ids)
     
@@ -43,6 +51,11 @@ async def purge_cmd(event):
 # ================= 2. .purgemy [Count] =================
 @events.register(events.NewMessage(pattern=r"\.purgemy (\d+)"))
 async def purgemy_cmd(event):
+    # 🛡️ NO-ENTRY LOGIC (FIXED)
+    if event.is_private and event.sender_id != OWNER_ID:
+        await event.edit("**⌬ 𝖠𝖢𝖢𝖤𝖲𝖲 𝖣𝖤▵▨𝖤𝖣** 🛡️")
+        return
+
     if await is_banned(event.sender_id): return
     if await get_maintenance() and event.sender_id != OWNER_ID: return
 
@@ -65,4 +78,4 @@ async def purgemy_cmd(event):
 async def setup(client):
     client.add_event_handler(purge_cmd)
     client.add_event_handler(purgemy_cmd)
-      
+        
