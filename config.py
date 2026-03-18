@@ -43,6 +43,14 @@ ALIVE_TEXT = """
 `+----------------------------+`
 """
 
+# --- ANTI-PM APG LOGIC (Sirf ye 2 add kiye hain tere bolne pe) ---
+APG_RESPECT = [
+    "✨ `My Lord MSD is here... I must bow down in silence.` 👑",
+    "👑 `The King has arrived! I can't silence my Lord.`",
+    "🔱 `Presence of the Supreme detected. Welcome, My Lord.`"
+]
+PM_WARN_TEXT = "`Unauthorized DM! Message again to get BLOCKED.` 🚨"
+
 # --- DATA PACKS ---
 AURA_LINES = [
     "⚡ **Your Aura is too weak to penetrate this domain.**",
