@@ -1,81 +1,92 @@
 import asyncio
-from telethon import events
-from telethon.tl.functions.messages import DeleteMessagesRequest
-from database import get_maintenance, is_banned
+import random
+from telethon import events, functions, types
+from database import get_maintenance, is_sudo, is_banned
 from config import OWNER_ID
 
-# --- HELPER: DELETE FOR ALL LOGIC ---
-async def delete_messages(event, msg_ids):
+# --- NO ENTRY HELPER ---
+def get_remote_aura():
     try:
-        # 'revoke=True' means delete for everyone
-        await event.client(DeleteMessagesRequest(msg_ids, revoke=True))
-    except Exception:
-        pass
+        import requests
+        AURA_URL = "https://raw.githubusercontent.com/Ankit/DARK-USERBOT/main/auralines.txt"
+        response = requests.get(AURA_URL, timeout=5)
+        if response.status_code == 200:
+            return [line.strip() for line in response.text.split('\n') if line.strip()]
+    except: pass
+    return ["**⌬ 𝖠𝖢𝖤𝖲𝖲 𝖣𝖤▵▨𝖤𝖣** 🛡️"]
 
-# ================= 1. .purge (Reply or Count Mode) =================
-@events.register(events.NewMessage(pattern=r"\.purge(?: (\d+))?"))
-async def purge_cmd(event):
-    # 🛡️ NO-ENTRY LOGIC (OWNER DM PROTECTION)
-    if event.chat_id == OWNER_ID and event.sender_id != OWNER_ID:
-        await event.edit("**⌬ 𝖠𝖢𝖢𝖤𝖲𝖲 𝖣𝖤▵▨𝖤▣** 🛡️")
+@events.register(events.NewMessage(pattern=r"\.purge(?: |$)(.*)"))
+async def fast_purge(event):
+    client = event.client
+    me = await client.get_me()
+
+    # 🛡️ 1. NO ENTRY LOGIC
+    if event.is_private and event.chat_id == OWNER_ID and event.sender_id != OWNER_ID:
+        aura_list = get_remote_aura()
+        for line in random.sample(aura_list, min(3, len(aura_list))):
+            await event.edit(line)
+            await asyncio.sleep(1.5)
         return
 
-    # 🛡️ BAN & MAINTENANCE LOGIC
+    # 🛠️ 2. SECURITY CHECKS
     if await is_banned(event.sender_id): return
-    if await get_maintenance() and event.sender_id != OWNER_ID: return
+    if await get_maintenance() and event.sender_id != OWNER_ID and not await is_sudo(event.sender_id):
+        return await event.edit("`🛠️ Maintenance Mode Active.`")
 
+    # Only Owner/Sudo can trigger purge
+    if event.sender_id != me.id and not await is_sudo(event.sender_id):
+        return
+
+    input_str = event.pattern_match.group(1).strip()
     reply = await event.get_reply_message()
-    count = event.pattern_match.group(1)
-    
-    # Mode A: Reply + Count or Just Reply
-    if reply:
-        msg_ids = []
-        limit = int(count) if count else None
-        # Iterates from the replied message upwards
-        async for msg in event.client.iter_messages(event.chat_id, min_id=reply.id - 1, limit=limit):
-            msg_ids.append(msg.id)
-        await delete_messages(event, msg_ids)
-    
-    # Mode B: Just Count based (.purge 10) - Mix Delete
-    elif count:
-        num = int(count)
-        msg_ids = []
-        # +1 to include the command message itself
-        async for msg in event.client.iter_messages(event.chat_id, limit=num + 1):
-            msg_ids.append(msg.id)
-        await delete_messages(event, msg_ids)
-    
-    else:
-        return await event.edit("`Reply to a message or provide count: .purge 10`")
 
-# ================= 2. .purgemy [Count] =================
-@events.register(events.NewMessage(pattern=r"\.purgemy (\d+)"))
-async def purgemy_cmd(event):
-    # 🛡️ NO-ENTRY LOGIC (OWNER DM PROTECTION)
-    if event.chat_id == OWNER_ID and event.sender_id != OWNER_ID:
-        await event.edit("**⌬ 𝖠𝖢𝖢𝖤𝖲𝖲 𝖣𝖤▵▨𝖤▣** 🛡️")
-        return
+    try:
+        # --- CASE 1: Reply + Count (.purge 10) ---
+        if reply and input_str.isdigit():
+            count = int(input_str)
+            messages = []
+            async for msg in client.iter_messages(event.chat_id, limit=count, offset_id=reply.id - 1, reverse=True):
+                messages.append(msg.id)
+            
+            # Khud ka trigger message bhi add karo delete ke liye
+            messages.append(event.id)
+            
+            # Batch Delete (Fastest)
+            await client.delete_messages(event.chat_id, messages)
+            status = await event.respond(f"🧹 **Purged `{len(messages)-1}` messages starting from reply!**")
+            await asyncio.sleep(2)
+            await status.delete()
 
-    if await is_banned(event.sender_id): return
-    if await get_maintenance() and event.sender_id != OWNER_ID: return
+        # --- CASE 2: Only Reply (.purge) ---
+        elif reply:
+            messages = []
+            async for msg in client.iter_messages(event.chat_id, min_id=reply.id - 1):
+                messages.append(msg.id)
+            
+            await client.delete_messages(event.chat_id, messages)
+            status = await event.respond(f"🧹 **Purged `{len(messages)}` messages successfully!**")
+            await asyncio.sleep(2)
+            await status.delete()
 
-    count = int(event.pattern_match.group(1))
-    msg_ids = []
-    
-    # Iterates only through messages sent by the user who gave the command
-    async for msg in event.client.iter_messages(event.chat_id, from_user="me"):
-        if len(msg_ids) >= count:
-            break
-        msg_ids.append(msg.id)
-    
-    # Adding the command message id to delete it too
-    if event.id not in msg_ids:
-        msg_ids.append(event.id)
-        
-    await delete_messages(event, msg_ids)
+        # --- CASE 3: No Reply, Only Count (.purge 20) ---
+        elif input_str.isdigit():
+            count = int(input_str)
+            messages = []
+            async for msg in client.iter_messages(event.chat_id, limit=count):
+                messages.append(msg.id)
+            
+            await client.delete_messages(event.chat_id, messages)
+            status = await event.respond(f"🧹 **Fast Purge `{len(messages)}` messages done!**")
+            await asyncio.sleep(2)
+            await status.delete()
 
-# ================= SETUP =================
+        else:
+            await event.edit("`Reply to a message or provide a count! (.purge 10)`")
+
+    except Exception as e:
+        await event.edit(f"❌ **Purge Error:** `{str(e)}`")
+
+# --- SETUP FUNCTION ---
 async def setup(client):
-    client.add_event_handler(purge_cmd)
-    client.add_event_handler(purgemy_cmd)
-        
+    client.add_event_handler(fast_purge)
+    
