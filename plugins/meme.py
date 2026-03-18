@@ -2,7 +2,7 @@ import random
 import requests
 from telethon import events
 
-# ================== CONFIG ==================
+# ================= CONFIG =================
 
 TENOR_API_KEY = "LIVDSRZULELA"
 
@@ -12,7 +12,8 @@ SEARCH_TERMS = [
     "bollywood reaction meme",
     "carryminati meme",
     "akshay kumar meme",
-    "rajpal yadav meme"
+    "rajpal yadav meme",
+    "funny indian reaction"
 ]
 
 REDDIT_SUBS = [
@@ -21,125 +22,76 @@ REDDIT_SUBS = [
     "memes"
 ]
 
-# 👉 Telegram channels (public only)
-TG_CHANNELS = [
-    "indianmemes",
-    "desimemes",
-    "bollywoodmemes"
-]
-
-# ================== TENOR ==================
+# ================= TENOR =================
 
 def get_tenor_meme():
     try:
         query = random.choice(SEARCH_TERMS)
-        url = f"https://g.tenor.com/v1/search?q={query}&key={TENOR_API_KEY}&limit=20"
-        
-        res = requests.get(url).json()
+        url = f"https://tenor.googleapis.com/v2/search?q={query}&key={TENOR_API_KEY}&limit=20"
+
+        res = requests.get(url, timeout=5).json()
         results = res.get("results", [])
-        
+
         if results:
             gif = random.choice(results)
-            return gif["media"][0]["gif"]["url"]
-    except:
-        pass
+            return gif["media_formats"]["gif"]["url"]
+
+    except Exception as e:
+        print("Tenor Error:", e)
+
     return None
 
-# ================== REDDIT ==================
+# ================= REDDIT =================
 
 def get_reddit_meme():
     try:
         sub = random.choice(REDDIT_SUBS)
-        url = f"https://www.reddit.com/r/{sub}/hot.json?limit=50"
-        
-        headers = {"User-Agent": "Mozilla/5.0"}
-        res = requests.get(url, headers=headers).json()
-        
-        posts = res["data"]["children"]
-        memes = []
+        url = f"https://meme-api.com/gimme/{sub}"
 
-        for p in posts:
-            url = p["data"]["url"]
-            if url.endswith((".jpg", ".png", ".jpeg", ".gif")):
-                memes.append(url)
+        res = requests.get(url, timeout=5).json()
 
-        if memes:
-            return random.choice(memes)
-    except:
-        pass
+        if res and "url" in res:
+            return res["url"]
+
+    except Exception as e:
+        print("Reddit Error:", e)
+
     return None
 
-# ================== TELEGRAM ==================
+# ================= COMMANDS =================
 
-async def get_telegram_meme(client):
-    try:
-        channel = random.choice(TG_CHANNELS)
-        msgs = await client.get_messages(channel, limit=20)
-
-        media_msgs = [m for m in msgs if m.media]
-
-        if media_msgs:
-            return random.choice(media_msgs)
-    except:
-        pass
-    return None
-
-# ================== COMMANDS ==================
-
-# 🔥 MIXED AUTO MEME
+# 🔥 MIXED MEME
 @events.register(events.NewMessage(pattern=r"\.meme"))
 async def meme(event):
     await event.edit("`😂 Fetching Meme...`")
 
-    choice = random.choice(["tenor", "reddit", "telegram"])
+    meme_url = get_tenor_meme()
 
-    if choice == "tenor":
-        meme = get_tenor_meme()
-        if meme:
-            await event.delete()
-            return await event.client.send_file(event.chat_id, meme)
+    # fallback to reddit
+    if not meme_url:
+        meme_url = get_reddit_meme()
 
-    elif choice == "reddit":
-        meme = get_reddit_meme()
-        if meme:
-            await event.delete()
-            return await event.client.send_file(event.chat_id, meme)
-
-    else:
-        msg = await get_telegram_meme(event.client)
-        if msg:
-            await event.delete()
-            return await msg.forward_to(event.chat_id)
+    if meme_url:
+        await event.delete()
+        return await event.client.send_file(event.chat_id, meme_url)
 
     await event.edit("❌ No meme found")
 
-# 📦 TELEGRAM MEMES ONLY
-@events.register(events.NewMessage(pattern=r"\.tmeme"))
-async def tmeme(event):
-    await event.edit("`📦 Fetching Telegram Meme...`")
-
-    msg = await get_telegram_meme(event.client)
-    if msg:
-        await event.delete()
-        return await msg.forward_to(event.chat_id)
-
-    await event.edit("❌ No Telegram meme found")
-
-# 😂 REDDIT MEMES ONLY
+# 😂 REDDIT ONLY
 @events.register(events.NewMessage(pattern=r"\.rmeme"))
 async def rmeme(event):
     await event.edit("`🔥 Fetching Reddit Meme...`")
 
-    meme = get_reddit_meme()
-    if meme:
+    meme_url = get_reddit_meme()
+
+    if meme_url:
         await event.delete()
-        return await event.client.send_file(event.chat_id, meme)
+        return await event.client.send_file(event.chat_id, meme_url)
 
     await event.edit("❌ No Reddit meme found")
 
-# ================== SETUP ==================
+# ================= SETUP =================
 
 async def setup(client):
     client.add_event_handler(meme)
-    client.add_event_handler(tmeme)
     client.add_event_handler(rmeme)
