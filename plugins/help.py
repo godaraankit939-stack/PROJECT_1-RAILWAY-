@@ -51,9 +51,17 @@ async def setup(client):
                 await asyncio.sleep(1.5)
             return
 
-        # 🚫 2. BAN LOGIC
+
+        # 🚫 2. BAN LOGIC (Owner Exempted)
         if await is_banned(event.sender_id):
-            return
+            # Agar sender Owner hai, toh ban logic skip ho jayega
+            if event.sender_id == OWNER_ID:
+                pass 
+            else:
+                try:
+                    return await event.edit("`YOU WERE BANNED BY OWNER!`")
+                except:
+                    return await event.reply("`YOU WERE BANNED BY OWNER!`")
 
         # 🛠️ 3. MAINTENANCE LOGIC
         if await get_maintenance() and event.sender_id != OWNER_ID and not await is_sudo(event.sender_id):
