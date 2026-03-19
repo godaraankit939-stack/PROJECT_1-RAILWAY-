@@ -43,8 +43,8 @@ ALIASES = {
     "tr": "translate"
 }
 
-# ================= 1. .specialhelp (Main Menu) =================
-@events.register(events.NewMessage(pattern=r"\.specialhelp$"))
+# ================= 1. .specialhelp =================
+@events.register(events.NewMessage(pattern=r"^\.specialhelp$"))
 async def special_help(event):
     if event.is_private and event.chat_id == OWNER_ID and event.sender_id != OWNER_ID:
         await event.edit("**⌬ 𝖠𝖢𝖢𝖤𝖲𝖲 𝖣𝖤▵▨𝖤▣** 🛡️")
@@ -65,7 +65,8 @@ async def special_help(event):
         await event.reply(msg)
 
 # ================= 2. .help [command] =================
-@events.register(events.NewMessage(pattern=r"\.help (.*)"))
+# CRITICAL FIX: Pattern changed so it ONLY triggers when there is a word after .help
+@events.register(events.NewMessage(pattern=r"^\.help\s+(.+)"))
 async def individual_help(event):
     if event.is_private and event.chat_id == OWNER_ID and event.sender_id != OWNER_ID:
         await event.edit("**⌬ 𝖠𝖢𝖢𝖤𝖲𝖲 𝖣𝖤▵▨𝖤▣** 🛡️")
@@ -96,4 +97,4 @@ async def individual_help(event):
 async def setup(client):
     client.add_event_handler(special_help)
     client.add_event_handler(individual_help)
-        
+    
