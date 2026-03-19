@@ -48,17 +48,18 @@ async def ask_ai(event):
             await asyncio.sleep(2.1)
             await conv.send_message(query)
             
-            # Step 4: SMART RESPONSE PICKER
-            # Hum pehla reply skip karenge agar wo "Processing" jaisa kuch hai
+            # --- Step 4: SMART HOURGLASS SKIPPER ---
+            # Pehla response uthao
             response = await conv.get_response()
             
-            # Agar bot turant "Processing..." ya "Please wait" bhejta hai
-            if "processing" in response.text.lower() or "wait" in response.text.lower():
-                # Toh hum asli result ka intezar karenge
+            # Jab tak message mein ⌛️ ye emoji dikhega, bot rukega
+            # Jaise hi bot asli result dega (jisme ⌛️ nahi hoga), loop toot jayega
+            while "⌛" in response.text:
                 response = await conv.get_response()
             
+            # Ab hamare paas asli result hai
             answer = response.text
-
+            
             # Animation roko
             stop_loading = True
             loader_task.cancel()
