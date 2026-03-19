@@ -19,24 +19,23 @@ def get_remote_aura():
 
 # --- UPDATED HELP MENU ---
 HELP_MENU = """
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃      ⌬ DARK X USERBOT ⌬      ┃
-┣━━━━━━━━━━━━┳━━━━━━━━━━━━━┫
-┃ ◈ Afk        ┃ ◈ Animate     ┃
-┃ ◈ Antipm     ┃ ◈ B-Cast      ┃
-┃ ◈ Clone      ┃ ◈ Create      ┃
-┃ ◈ Destruct   ┃ ◈ Dict        ┃
-┃ ◈ Ask        ┃ ◈ Info        ┃
-┃ ◈ Lyrics     ┃ ◈ Memify      ┃
-┃ ◈ Mention    ┃ ◈ Ping        ┃
-┃ ◈ Quote      ┃ ◈ Raid        ┃
-┃ ◈ Tiny       ┃ ◈ Trans       ┃
-┃ ◈ Weather    ┃ ◈ Magic       ┃
-┣━━━━━━━━━━━━┻━━━━━━━━━━━━━┫
-┃  ┃ Powered By : MSD 👑┃┃     ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃     ⌬ DARK X USERBOT ⌬     ┃
+┣━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┫
+┃ ◈ Afk          ┃ ◈ Animate     ┃
+┃ ◈ Antipm       ┃ ◈ B-Cast      ┃
+┃ ◈ Clone        ┃ ◈ Create      ┃
+┃ ◈ Destruct     ┃ ◈ Dict        ┃
+┃ ◈ Ask          ┃ ◈ Info        ┃
+┃ ◈ Lyrics       ┃ ◈ Memify      ┃
+┃ ◈ Mention      ┃ ◈ Ping        ┃
+┃ ◈ Quote        ┃ ◈ Raid        ┃
+┃ ◈ Tiny         ┃ ◈ Trans       ┃
+┃ ◈ Weather      ┃ ◈ Magic       ┃
+┣━━━━━━━━━━━━━━┻━━━━━━━━━━━━━┫
+┃   Powered By : MSD 👑      ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 """
-
 # ================= MAIN HANDLER =================
 async def setup(client):
     # Pattern strictly only for ".help" (No space, no extra words)
