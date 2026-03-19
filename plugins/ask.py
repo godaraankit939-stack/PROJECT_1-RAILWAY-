@@ -1,9 +1,12 @@
 import asyncio
 import random
 import requests
+import os
 from telethon import events
 from database import get_maintenance, is_sudo, is_banned
 from config import OWNER_ID
+
+HF_API_KEY = os.getenv("HF_API_KEY")
 
 AURA_URL = "https://raw.githubusercontent.com/Ankit/DARK-USERBOT/main/auralines.txt"
 
@@ -16,7 +19,7 @@ def get_remote_aura():
         pass
     return ["**⌬ ACCESS DENIED 🛡️**"]
 
-# ================= FREE AI SYSTEM =================
+# ================= MULTI FREE AI =================
 @events.register(events.NewMessage(pattern=r"\.ask ?(.*)"))
 async def ask_ai(event):
     client = event.client
@@ -39,53 +42,66 @@ async def ask_ai(event):
     if not query:
         return await event.edit("`Ask something...`")
 
-    await event.edit("`🤖 Thinking (Free AI Mode)...`")
+    await event.edit("`🤖 AI Thinking...`")
 
-    result = ""
+    answer = ""
 
-    # 🚀 ENGINE 1: DUCKDUCKGO
-    try:
-        url = "https://api.duckduckgo.com/?q=" + query.replace(" ", "+") + "&format=json&no_html=1"
-        data = requests.get(url, timeout=10).json()
+    # ================= 1️⃣ HUGGINGFACE =================
+    if HF_API_KEY:
+        try:
+            API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-large"
+            headers = {"Authorization": f"Bearer {HF_API_KEY}"}
+            payload = {"inputs": query}
 
-        if data.get("Answer"):
-            result = data["Answer"]
+            res = requests.post(API_URL, headers=headers, json=payload, timeout=20)
+            data = res.json()
 
-        elif data.get("AbstractText"):
-            result = data["AbstractText"]
+            if isinstance(data, list) and "generated_text" in data[0]:
+                answer = data[0]["generated_text"]
 
-        elif data.get("RelatedTopics"):
-            texts = []
-            for t in data["RelatedTopics"][:5]:
-                if "Text" in t:
-                    texts.append(t["Text"])
-            if texts:
-                result = "\n\n".join(texts)
+        except:
+            pass
 
-    except:
-        pass
+    # ================= 2️⃣ DUCKDUCKGO =================
+    if not answer:
+        try:
+            url = "https://api.duckduckgo.com/?q=" + query.replace(" ", "+") + "&format=json&no_html=1"
+            data = requests.get(url, timeout=10).json()
 
-    # 🚀 ENGINE 2: WIKIPEDIA
-    if not result:
+            if data.get("Answer"):
+                answer = data["Answer"]
+
+            elif data.get("AbstractText"):
+                answer = data["AbstractText"]
+
+            elif data.get("RelatedTopics"):
+                texts = []
+                for t in data["RelatedTopics"][:5]:
+                    if "Text" in t:
+                        texts.append(t["Text"])
+                if texts:
+                    answer = "\n\n".join(texts)
+
+        except:
+            pass
+
+    # ================= 3️⃣ WIKIPEDIA =================
+    if not answer:
         try:
             url = "https://en.wikipedia.org/api/rest_v1/page/summary/" + query.replace(" ", "_")
             data = requests.get(url, timeout=10).json()
 
             if data.get("extract"):
-                result = data["extract"]
+                answer = data["extract"]
+
         except:
             pass
 
-    # 🚀 FINAL FALLBACK (SMART MESSAGE)
-    if not result:
-        result = f"I couldn’t find exact info for '{query}', but try being more specific."
+    # ================= FINAL =================
+    if not answer:
+        answer = "I couldn’t find proper info. Try refining your query."
 
-    # 🧠 FORMAT (AI style)
-    final = (
-        f"🤖 **AI Answer:**\n\n"
-        f"{result}\n\n"
-        f"**Powered By DARK-USERBOT 💀 (FREE AI)**"
-    )
+    final = f"🤖 **AI Response:**\n\n{answer}\n\n**DARK-USERBOT 💀 (FREE AI SYSTEM)**"
 
     if len(final) > 4095:
         final = final[:4090] + "..."
