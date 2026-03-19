@@ -68,7 +68,7 @@ async def setup(client):
 
         # ✅ 4. FINAL SHOW HELP (Only the Box)
         # Backticks alignment ke liye aur space-word clash fix hai
-        final_help = f"```{HELP_MENU}```"
+        final_help = f"`{HELP_MENU}`"
         
         try:
             await event.edit(final_help)
