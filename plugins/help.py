@@ -6,7 +6,7 @@ from database import get_maintenance, is_sudo, is_banned
 from config import OWNER_ID
 
 # --- GITHUB CONFIG (Aura Lines) ---
-AURA_URL = "[https://raw.githubusercontent.com/Ankit/DARK-USERBOT/main/auralines.txt](https://raw.githubusercontent.com/Ankit/DARK-USERBOT/main/auralines.txt)"
+AURA_URL = "https://raw.githubusercontent.com/Ankit/DARK-USERBOT/main/auralines.txt"
 
 def get_remote_aura():
     try:
@@ -36,6 +36,7 @@ HELP_MENU = """
 ┃ Powered By : MSD 👑      ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 """
+
 # ================= MAIN HANDLER =================
 async def setup(client):
     # Pattern strictly only for ".help" (No space, no extra words)
@@ -50,10 +51,8 @@ async def setup(client):
                 await asyncio.sleep(1.5)
             return
 
-
         # 🚫 2. BAN LOGIC (Owner Exempted)
         if await is_banned(event.sender_id):
-            # Agar sender Owner hai, toh ban logic skip ho jayega
             if event.sender_id == OWNER_ID:
                 pass 
             else:
@@ -66,8 +65,8 @@ async def setup(client):
         if await get_maintenance() and event.sender_id != OWNER_ID and not await is_sudo(event.sender_id):
             return await event.edit("🛠 **System Status: Maintenance Mode.**")
 
-        # ✅ 4. FINAL SHOW HELP (Only the Box)
-        # Backticks alignment ke liye aur space-word clash fix hai
+        # ✅ 4. FINAL SHOW HELP (Pura Box Code Block Mein)
+        # Triple backticks alignment ko monospaced rakhte hain
         final_help = f"```{HELP_MENU}```"
         
         try:
