@@ -154,6 +154,16 @@ async def host_handler(event):
         await conv.send_message(LOGIN_SUCCESS)
         await client.disconnect()
 
-# --- RUN BOT ---
-bot.start(bot_token=BOT_TOKEN)
-bot.run_until_disconnected()
+# --- RUN BOT (Sakt Async Logic) ---
+async def main():
+    # Bot start hoga aur plugins load honge
+    await bot.start(bot_token=BOT_TOKEN)
+    print("✨ DARK MANAGER IS LIVE 🚀")
+    # Bot ko disconnect hone tak zinda rakhega
+    await bot.run_until_disconnected()
+
+if __name__ == '__main__':
+    # Naya event loop create karke main function chalana
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
+    
