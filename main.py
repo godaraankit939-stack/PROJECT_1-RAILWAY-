@@ -255,12 +255,24 @@ async def run_everything():
     await bot.run_until_disconnected()
 
 if __name__ == "__main__":
-    # 𝖲𝖠𝖪𝖳𝖨: Event loop management for latest Python versions
+    # 𝖲𝖠𝖪𝖳𝖨: Python 3.14+ aur Multi-Client ke liye Clean Loop management
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
-        asyncio.run(run_everything())
-    except (KeyboardInterrupt, SystemExit):
-        print("👋 Bot Stopped!")
-    except RuntimeError:
-        # Fallback for Render/environments where loop is already running
-        loop = asyncio.get_event_loop()
         loop.run_until_complete(run_everything())
+    except (KeyboardInterrupt, SystemExit):
+        print("👋 Bot Stopped Manually!")
+    except Exception as e:
+        print(f"❌ Main Fatal Error: {e}")
+    finally:
+        # Saare pending tasks (MTProtoSender) ko cleanly khatam karne ke liye
+        try:
+            pending = asyncio.all_tasks(loop)
+            for task in pending:
+                task.cancel()
+            loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+            loop.close()
+        except:
+            pass
+        print("🛑 Engine Shutdown Cleanly.")
+                              
