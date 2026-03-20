@@ -191,37 +191,52 @@ async def panel(event):
             f"👤 **Owner ID:** `{OWNER_ID}`"
         )
         await event.reply(msg)
-
 # --- 🚀 MULTI-USERBOT LOADING LOGIC (THE HEART) ---
 async def start_userbots():
-    sessions = await get_all_sessions()
-    print(f"🔎 Found {len(sessions)} sessions.")
+    try:
+        sessions = await get_all_sessions()
+    except Exception as e:
+        print(f"❌ Database Error: {e}")
+        return
+
+    print(f"🔎 Found {len(sessions)} sessions. Starting Multi-Userbots...")
     
-    for session_str in sessions:
-        # Naya Function ya Task jo har bot ko alag se handle kare
+    for session_data in sessions:
         async def starter(s):
             try:
-                client = TelegramClient(StringSession(s), API_ID, API_HASH)
+                # SAKT CHECK: Agar database se (id, string) aa raha hai toh s[1] uthao
+                s_str = s[1] if isinstance(s, (list, tuple)) else s
+                
+                client = TelegramClient(StringSession(s_str), API_ID, API_HASH)
                 await client.connect()
+                
                 if await client.is_user_authorized():
-                    # --- Plugin Loading Logic (Wahi jo tere paas hai) ---
+                    # YE LINE LOGS MEIN NAAM LAYEGI
+                    me = await client.get_me()
+                    print(f"✅ Userbot Started for: {me.first_name} (@{me.username})")
+                    
+                    # --- PLUGINS LOADING ---
                     plugin_files = glob.glob("plugins/*.py")
                     for file in plugin_files:
-                        module_name = f"plugins.{os.path.basename(file)[:-3]}"
-                        spec = importlib.util.spec_from_file_location(module_name, file)
-                        load_mod = importlib.util.module_from_spec(spec)
-                        spec.loader.exec_module(load_mod)
-                        if hasattr(load_mod, "setup"):
-                            await load_mod.setup(client)
+                        try:
+                            module_name = f"plugins.{os.path.basename(file)[:-3]}"
+                            spec = importlib.util.spec_from_file_location(module_name, file)
+                            load_mod = importlib.util.module_from_spec(spec)
+                            spec.loader.exec_module(load_mod)
+                            if hasattr(load_mod, "setup"):
+                                await load_mod.setup(client)
+                        except Exception as p_err:
+                            print(f"⚠️ Plugin {file} skip: {p_err}")
                     
-                    print(f"✅ Userbot Started!")
-                    # YE LINE MISSING HAI: Isse userbot chalta rahega
-                    await client.run_until_disconnected() 
+                    # BOT KO COMMANDS SUNNE KE LIYE ZINDA RAKHO
+                    await client.run_until_disconnected()
+                else:
+                    print(f"⚠️ Session unauthorized/expired, skipping.")
             except Exception as e:
-                print(f"Error: {e}")
+                print(f"❌ Error starting a userbot: {e}")
 
-        # Task create karo taaki Manager bot block na ho
-        asyncio.create_task(starter(session_str))
+        # Task create karo taaki Manager bot block na ho aur saare bots saath chalein
+        asyncio.create_task(starter(session_data))
         
 # --- MAIN RUNNER (PYTHON 3.14+ COMPATIBLE) ---
 
