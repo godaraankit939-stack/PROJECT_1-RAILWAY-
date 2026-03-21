@@ -8,9 +8,11 @@ from threading import Thread
 from telethon import TelegramClient, events, Button
 from telethon.sessions import StringSession
 from telethon.errors import (
-    PhoneNumberInvalidError, PhoneCodeInvalidError, 
+    PhoneNumberInvalidError, PhoneCodeInvalidError, UserNotParticipantError,
     PhoneCodeExpiredError, SessionPasswordNeededError, PasswordHashInvalidError
 )
+from telethon.tl.functions.channels import GetParticipantRequest
+
 # Config aur Database se functions uthana
 from config import API_ID, API_HASH, BOT_TOKEN, START_MSG, LOGIN_SUCCESS, OWNER_ID
 from database import (
@@ -19,9 +21,20 @@ from database import (
     get_all_sessions, get_sudo_list
 )
 
+# --- 🚀 NO ENTRY (FORCE JOIN) CONFIG ---
+AUTH_CHATS = ["D4RK_ARMYY", "dark_uploads", -1002341933066] 
+LINKS = [
+    "https://t.me/dark_uploads",
+    "https://t.me/+Da6Oc_soDHA2YjE1",
+    "https://t.me/D4RK_ARMYY"
+]
+# Button ke upar wala text
+FJOIN_TEXT = "✨ **DARKXUSERBOT**\n\n**JOIN THESE CHANNELS TO CONTINUE 💫**"
+
 # Render fix: ensures config/database are found
 sys.path.append(os.getcwd())
-# --- 1. RENDER PORT BINDING (MANAGER KO ZINDA RAKHNE KE LIYE) ---
+
+# --- 1. RENDER PORT BINDING ---
 app = Flask('')
 @app.route('/')
 def home():
@@ -39,63 +52,90 @@ def keep_alive():
     t.start()
 
 keep_alive()
-# Bot Client Initialize - Manager Bot
+
 bot = TelegramClient('manager_session', API_ID, API_HASH)
 
-# --- MAINTENANCE CHECK HELPER ---
+# --- 🛠️ NO ENTRY HELPERS ---
+
+async def is_joined(user_id):
+    if user_id == OWNER_ID: return True
+    for chat in AUTH_CHATS:
+        try:
+            await bot(GetParticipantRequest(channel=chat, participant=user_id))
+        except UserNotParticipantError:
+            return False
+        except:
+            continue
+    return True
+
+async def get_fjoin_buttons():
+    return [
+        [Button.url("📢 JOIN", LINKS[0])],
+        [Button.url("📢 JOIN", LINKS[1])],
+        [Button.url("📢 JOIN", LINKS[2])],
+        [Button.inline("✅ VERIFY & START", data="verify")]
+    ]
+
 async def is_maint(user_id):
     if user_id == OWNER_ID or await is_sudo(user_id):
         return False
     return await get_maintenance()
 
-# --- MANAGER BOT HANDLERS ---
+# --- 📢 MANAGER BOT HANDLERS ---
 
 @bot.on(events.NewMessage(pattern='/start'))
 async def start(event):
-    # Ban check logic
     if await is_banned(event.sender_id):
         return await event.reply("❌ **You are banned from using this bot.**")
-    # Maintenance check logic
+    
+    # --- NO ENTRY LOGIC WITH CUSTOM TEXT ---
+    if not await is_joined(event.sender_id):
+        return await event.reply(
+            FJOIN_TEXT,
+            buttons=await get_fjoin_buttons()
+        )
+
     if await is_maint(event.sender_id):
         return await event.reply("🚧 **Bot is under Maintenance Mode.**")
     await event.reply(START_MSG, parse_mode='md')
+
+@bot.on(events.CallbackQuery(data="verify"))
+async def verify_cb(event):
+    if await is_joined(event.sender_id):
+        await event.delete()
+        await bot.send_message(event.sender_id, START_MSG)
+    else:
+        await event.answer("❌ Teeno join kar pehle! 🤡", alert=True)
 
 @bot.on(events.NewMessage(pattern='/alive'))
 async def bot_alive(event):
     if await is_banned(event.sender_id): return
     await event.reply("✨ **DARK MANAGER IS LIVE**\nStatus: `Running` 🚀")
 
-# --- HOSTING LOGIC (OTP/LOGIN) ---
+# --- HOSTING LOGIC ---
 @bot.on(events.NewMessage(pattern='/host'))
 async def host_handler(event):
     if await is_banned(event.sender_id): return
+    if not await is_joined(event.sender_id):
+        return await event.reply(FJOIN_TEXT, buttons=await get_fjoin_buttons())
     if await is_maint(event.sender_id): return await event.reply("🚧 Maintenance ON!")
     
     async with bot.conversation(event.chat_id) as conv:
         await conv.send_message("📲 **Please send your Phone Number with Country Code.**\nExample: `+919876543210`")
-        
         number = await conv.get_response()
         phone_number = number.text.replace(" ", "")
-        
-        # OTP Status Update
         status_msg = await conv.send_message("📨 **Sending OTP... Please wait.**")
-        
         client = TelegramClient(StringSession(), API_ID, API_HASH)
         await client.connect()
-        
         try:
             await client.send_code_request(phone_number)
             await status_msg.edit("✅ **OTP Sent!**\nPlease send it like: `1 2 3 4 5` (With spaces)")
         except Exception as e:
             await status_msg.edit(f"❌ **Error:** `{e}`")
             return
-
         otp_res = await conv.get_response()
         otp = otp_res.text.replace(" ", "")
-
-        # Login Status Update
         await status_msg.edit("⚙️ **Logging in... Please wait.**")
-
         try:
             await client.sign_in(phone_number, otp)
         except SessionPasswordNeededError:
@@ -109,25 +149,23 @@ async def host_handler(event):
         except Exception as e:
             await status_msg.edit(f"❌ **Login Failed:** `{e}`")
             return
-
-        # Success - Session Store
         session_str = client.session.save()
         user_info = await client.get_me()
         user_id = user_info.id
         await save_session(user_id, session_str)
-        
         await status_msg.edit(f"✅ **Login Successful!**\n\n**String Session:**\n`{session_str}`")
         await conv.send_message(LOGIN_SUCCESS)
         await client.disconnect()
 
-# --- CLONE COMMAND (String Support) ---
+# --- CLONE COMMAND ---
 @bot.on(events.NewMessage(pattern='/clone'))
 async def clone_cmd(event):
     if await is_banned(event.sender_id) or await is_maint(event.sender_id): return
+    if not await is_joined(event.sender_id):
+        return await event.reply(FJOIN_TEXT, buttons=await get_fjoin_buttons())
     args = event.text.split(" ", 1)
     if len(args) < 2:
         return await event.reply("❌ **Usage:** `/clone <string_session>`")
-    
     status = await event.reply("⚙️ **Validating String Session...**")
     try:
         temp = TelegramClient(StringSession(args[1]), API_ID, API_HASH)
@@ -139,15 +177,13 @@ async def clone_cmd(event):
     except Exception as e:
         await status.edit(f"❌ **Invalid String:** `{e}`")
 
-# --- ADMIN PANEL COMMANDS ---
-
+# --- ADMIN PANEL ---
 @bot.on(events.NewMessage(pattern='/ban'))
 async def ban(event):
     if event.sender_id == OWNER_ID or await is_sudo(event.sender_id):
         reply = await event.get_reply_message()
         args = event.text.split()
         user_id = reply.sender_id if reply else (int(args[1]) if len(args) > 1 else None)
-        
         if user_id:
             if user_id == OWNER_ID: return await event.reply("Aura check! Owner cannot be banned.")
             await ban_user(user_id)
@@ -161,7 +197,6 @@ async def unban_cmd(event):
         reply = await event.get_reply_message()
         args = event.text.split()
         user_id = reply.sender_id if reply else (int(args[1]) if len(args) > 1 else None)
-        
         if user_id:
             await unban_user(user_id)
             await event.reply(f"✅ **User {user_id} Unbanned.**")
@@ -182,7 +217,6 @@ async def panel(event):
         sessions = await get_all_sessions()
         sudo_list = await get_sudo_list()
         maint_status = "ON 🛠" if await get_maintenance() else "OFF ✅"
-        
         msg = (
             "📊 **DARK-USERBOT ADMIN PANEL**\n\n"
             f"🚀 **Active Userbots:** `{len(sessions)}`\n"
@@ -191,31 +225,24 @@ async def panel(event):
             f"👤 **Owner ID:** `{OWNER_ID}`"
         )
         await event.reply(msg)
-# --- 🚀 MULTI-USERBOT LOADING LOGIC (THE HEART) ---
+
+# --- 🚀 MULTI-USERBOT LOADING LOGIC ---
 async def start_userbots():
     try:
         sessions = await get_all_sessions()
     except Exception as e:
         print(f"❌ Database Error: {e}")
         return
-
     print(f"🔎 Found {len(sessions)} sessions. Starting Multi-Userbots...")
-    
     for session_data in sessions:
         async def starter(s):
             try:
-                # SAKT CHECK: Agar database se (id, string) aa raha hai toh s[1] uthao
                 s_str = s[1] if isinstance(s, (list, tuple)) else s
-                
                 client = TelegramClient(StringSession(s_str), API_ID, API_HASH)
                 await client.connect()
-                
                 if await client.is_user_authorized():
-                    # YE LINE LOGS MEIN NAAM LAYEGI
                     me = await client.get_me()
                     print(f"✅ Userbot Started for: {me.first_name} (@{me.username})")
-                    
-                    # --- PLUGINS LOADING ---
                     plugin_files = glob.glob("plugins/*.py")
                     for file in plugin_files:
                         try:
@@ -227,35 +254,24 @@ async def start_userbots():
                                 await load_mod.setup(client)
                         except Exception as p_err:
                             print(f"⚠️ Plugin {file} skip: {p_err}")
-                    
-                    # BOT KO COMMANDS SUNNE KE LIYE ZINDA RAKHO
                     await client.run_until_disconnected()
                 else:
                     print(f"⚠️ Session unauthorized/expired, skipping.")
             except Exception as e:
                 print(f"❌ Error starting a userbot: {e}")
-
-        # Task create karo taaki Manager bot block na ho aur saare bots saath chalein
         asyncio.create_task(starter(session_data))
-        
-# --- MAIN RUNNER (PYTHON 3.14+ COMPATIBLE) ---
+
+# --- MAIN RUNNER ---
 
 async def run_everything():
     print("🛑✨ DARK-USERBOT Engine Starting...")
-    
-    # 1. Start Manager Bot
     await bot.start(bot_token=BOT_TOKEN)
     print("📢 Manager Bot is Online!")
-
-    # 2. Start all Userbots from Database
     await start_userbots()
-
-    # 3. Final Block
     print("🚀 ALL SYSTEMS ARE LIVE! Bot is running...")
     await bot.run_until_disconnected()
 
 if __name__ == "__main__":
-    # 𝖲𝖠𝖪𝖳𝖨: Python 3.14+ aur Multi-Client ke liye Clean Loop management
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
@@ -265,14 +281,10 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"❌ Main Fatal Error: {e}")
     finally:
-        # Saare pending tasks (MTProtoSender) ko cleanly khatam karne ke liye
         try:
             pending = asyncio.all_tasks(loop)
-            for task in pending:
-                task.cancel()
+            for task in pending: task.cancel()
             loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
             loop.close()
-        except:
-            pass
+        except: pass
         print("🛑 Engine Shutdown Cleanly.")
-                              
