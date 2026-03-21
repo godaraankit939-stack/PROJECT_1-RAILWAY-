@@ -2,44 +2,349 @@ import random
 import config
 import asyncio
 from telethon import events
-# 🛡️ Sakt Check: Fdata path loading
-try:
-    from DARK.fdata import FLIRT_LINES
-except Exception as e:
-    try:
-        from plugins.fdata import FLIRT_LINES
-    except:
-        FLIRT_LINES = ["Oye hoye! 😉", "Tum kitni pyaari ho! ❤️"] # Fallback agar file na mile
-        print(f"⚠️ Warning: fdata file nahi mili! Error: {e}")
-
 from database import is_banned, get_maintenance, is_sudo
 
-# Memory to prevent repetition
+# --- 🚀 THE MEGA FLIRT LIST (Sakti Se Integrated) ---
+# Ab kisi fdata.py ki lod nahi hai, saara maal yahi hai!
+FLIRT_LINES = [
+    "I’m learning about important dates in history. Do you want to be one of them?",
+    "Are you a carbon sample? Because I want to date you.",
+    "Do you have a name, or can I just call you 'Mine'?",
+    "My parents always told me to follow my dreams, so can I have your Instagram?",
+    "Are you a keyboard? Because you’re just my type.",
+    "I’m not a professional photographer, but I can definitely picture us together.",
+    "I’d say God bless you, but it looks like He already did.",
+    "Do you have a map? Because I just got lost in your conversation.",
+    "Is your name Google? Because you have everything I’m searching for.",
+    "Are you a bank loan? Because you have my interest.",
+    "Are you a camera? Because every time I look at you, I smile.",
+    "If I could rearrange the alphabet, I’d put 'U' and 'I' together.",
+    "Are you Wi-Fi? Because I’m feeling a strong connection.",
+    "Do you believe in love at first sight, or should I walk by again?",
+    "I think there’s something wrong with my phone. Your number isn't in it.",
+    "Are you a parking ticket? Because you’ve got 'FINE' written all over you.",
+    "Is it hot in here, or is it just our chemistry?",
+    "You’re so beautiful that I forgot my pickup line.",
+    "If beauty were time, you’d be an eternity.",
+    "I’m on a mission to find the world's best smile, and I think I just found it.",
+    "Are you a volcano? Because I lava you.",
+    "Is your name Bluetooth? Because I’m really feeling a pairing coming on.",
+    "If I were a cat, I’d spend all 9 lives with you.",
+    "Something’s wrong with my eyes, because I can’t take them off you.",
+    "I think you’re suffering from a lack of Vitamin Me.",
+    "Do you have a pencil? Cause I want to erase your past and write our future.",
+    "Are you a time traveler? Because I see you in my future.",
+    "If you were a fruit, you'd be a fine-apple.",
+    "Are you a diamond? Because you're a rare find.",
+    "Do you have a license? Because you're driving me crazy.",
+    "Was that an earthquake or did you just rock my world?",
+    "I seem to have lost my phone number. Can I have yours?",
+    "Are you a charger? Because I'm dying without you.",
+    "Do you have a library card? Because I'm checking you out.",
+    "Are you a detective? Because you've found my hidden heart.",
+    "Do you have a compass? Because I'm lost without you.",
+    "Are you a scientist? Because we have great chemistry.",
+    "Is your name Spotify? Because you're the best track I've heard all day.",
+    "Do you like coffee? Because I like you a latte.",
+    "Are you a passport? Because I want to travel the world with you.",
+    "Is your name Gravity? Because I’m falling for you.",
+    "Are you a rhythm? Because my heart beats for you.",
+    "Are you a treasure? Because I’ve been searching for you.",
+    "I'm not a mathematician, but I'm pretty good with numbers. Can I have yours?",
+    "Are you an oxygen? Because I can't live without you.",
+    "Are you a sunset? Because you're breathtaking.",
+    "Are you a shooting star? Because I've been wishing for you.",
+    "Are you a masterpiece? Because you’re a work of art.",
+    "If you were a triangle, you'd be acute one.",
+    "Are you made of Copper and Tellurium? Because you're CuTe!",
+    "Your hand looks heavy—can I hold it for you?",
+    "Do you have a Band-Aid? I scraped my knee falling for you.",
+    "If you were a steak, you'd be well done.",
+    "Are you an interior decorator? Because when you walked in, the room became beautiful.",
+    "Was your father an alien? Because there's nothing else like you on Earth!",
+    "I’m lost. Can you give me directions to your heart?",
+    "Is your name Summer? Because you're making me melt.",
+    "Is your name Ariel? Because we were mer-maid for each other.",
+    "Do you have a twin? Because you're twice as beautiful.",
+    "Are you a campfire? Because you're hot and I want s'more.",
+    "Is your name Grace? Because you're simply stunning.",
+    "Are you a miracle? Because you're one in a million.",
+    "Do you have a smile? Because it's contagious.",
+    "Are you a light bulb? Because you brighten up my day.",
+    "I'm not a genie, but I can make your dreams come true.",
+    "Is your name Magic? Because you've cast a spell on me.",
+    "Are you a puzzle? Because I'd love to figure you out.",
+    "Is your name Sunny? Because you make my life brighter.",
+    "Are you a match? Because you’ve sparked something in me.",
+    "Is your name Angel? Because you’ve fallen from heaven.",
+    "Are you a melody? Because you’re stuck in my head.",
+    "Are you a cloud? Because you’re soft and beautiful.",
+    "Are you a wave? Because you’ve swept me off my feet.",
+    "Is your name Destiny? Because I think we’re meant to be.",
+    "Do you have a vibe? Because I’m feeling it.",
+    "Is your name Hope? Because you’re my future.",
+    "Are you a gift? Because I’m lucky to have you.",
+    "Is your name Answer? Because you solve my life.",
+    "Are you a hero? Because you save my day.",
+    "Do you have a laugh? Because it’s music to my ears.",
+    "Are you a vision? Because you’re stunning.",
+    "Is your name Pearl? Because you’re precious.",
+    "Are you a flame? Because you’re burning in my heart.",
+    "Do you have a glow? Because you’re radiant.",
+    "Is your name Lily? Because you’re pure beauty.",
+    "Are you a breeze? Because you’re refreshing.",
+    "Do you have a charm? Because you’re enchanting.",
+    "Is your name Soul? Because you’re the other half of mine.",
+    "Are you a sparkler? Because you’re dazzling.",
+    "Do you have a place? Because you’re paradise.",
+    "Is your name Sky? Because you're limitless.",
+    "Are you a garden? Because you're blossoming.",
+    "Do you have a wish? Because you're the one I'd make.",
+    "Are you a secret? Because I want to keep you.",
+    "Is your name Wonder? Because you're amazing.",
+    "Do you have a rhythm? Because you beat in my heart.",
+    "Is your name Love? Because you're everything I need.",
+    "Are you an app? Because you've just updated my heart.",
+    "Is your name Tesla? Because you're electric and I'm driven.",
+    "Are you a high-speed connection? Because I'm feeling zero lag between us.",
+    "Do you have a GitHub? Because I'd love to contribute to your future.",
+    "Are you a smart contract? Because you're exactly what I've been looking for.",
+    "Is your name Netflix? Because I could watch you for hours.",
+    "Are you an algorithm? Because you've solved all my problems.",
+    "Do you have a QR code? Because I want to scan your beauty.",
+    "Are you a software update? Because I'll always make time for you.",
+    "Is your name Python? Because you've got me wrapped around your finger.",
+    "Are you a blockchain? Because our connection is immutable.",
+    "Do you have a firewall? Because you're making my heart overheat.",
+    "Are you a server? Because you're always on my mind.",
+    "Is your name Java? Because you're the object of my desire.",
+    "Are you a CSS file? Because you've got great style.",
+    "Do you have a backlink? Because you're always leading me back to you.",
+    "Are you a crypto coin? Because your value just keeps going up.",
+    "Is your name Adobe? Because you're looking like a creative masterpiece.",
+    "Are you a data set? Because I want to analyze every bit of you.",
+    "Do you have a domain? Because you've taken up all the space in my head.",
+    "Are you a cloud storage? Because you've saved all my dreams.",
+    "Is your name Linux? Because you're open to my heart.",
+    "Are you a touch screen? Because I can't keep my hands off you.",
+    "Do you have an API? Because I want to connect with you.",
+    "Are you a bug? Because I've been thinking about you all night.",
+    "Is your name Bit? Because you've completed my byte.",
+    "Are you a hard drive? Because you've stored all my memories.",
+    "Do you have a password? Because you've locked my heart.",
+    "Are you a processor? Because you're making me work faster.",
+    "Is your name Mouse? Because you've clicked with me.",
+    "Are you a monitor? Because I'm always staring at you.",
+    "Do you have a font? Because you're just my type of bold.",
+    "Are you a pixel? Because you're the perfect picture.",
+    "Is your name Link? Because you've connected my soul.",
+    "Are you a folder? Because you've got all my files.",
+    "Do you have a scroll bar? Because I could look at you forever.",
+    "Are you a battery? Because you've given me life.",
+    "Is your name Speaker? Because you're speaking my language.",
+    "Are you a router? Because you've directed my heart to you.",
+    "Do you have a signal? Because I'm picking up what you're putting down.",
+    "Are you a website? Because I've got you bookmarked.",
+    "Is your name Tab? Because I want to keep you open.",
+    "Are you a browser? Because you've seen my history and still like me.",
+    "Do you have a cache? Because I've saved a spot for you.",
+    "Are you a script? Because you've rewritten my world.",
+    "Is your name Code? Because you're the logic I've been missing.",
+    "Are you a database? Because you've got all the info I need.",
+    "Do you have a port? Because I'm ready to plug into your life.",
+    "Are you a variable? Because you're always changing my mood.",
+    "Is your name Function? Because you've given me a purpose.",
+    "Are you a loop? Because I could fall for you over and over.",
+    "Do you have a boolean? Because you're the only true one for me.",
+    "Are you an integer? Because you're a whole lot of perfect.",
+    "Is your name String? Because you've pulled my heartstrings.",
+    "Are you a float? Because you've kept me drifting in your love.",
+    "Do you have a syntax? Because you're perfectly structured.",
+    "Are you a compiler? Because you've turned my thoughts into love.",
+    "Is your name Key? Because you've unlocked my heart.",
+    "Are you a value? Because you're worth everything to me.",
+    "Do you have a type? Because you're definitely mine.",
+    "Are you a class? Because you're in a league of your own.",
+    "Is your name Object? Because you're the center of my world.",
+    "Are you a property? Because you've got everything I want.",
+    "Do you have a method? Because you've got a way with me.",
+    "Are you a constant? Because you're always on my mind.",
+    "Is your name Operator? Because you've worked your magic on me.",
+    "Are you a condition? Because I'll always meet your needs.",
+    "Do you have a return? Because I'm always coming back to you.",
+    "Are you a break? Because you've stopped my search.",
+    "Is your name Continue? Because I want this to go on forever.",
+    "Are you a case? Because you're the best I've seen.",
+    "Do you have a default? Because you're my first choice.",
+    "Are you a switch? Because you've turned on my heart.",
+    "Is your name Catch? Because you've caught my eye.",
+    "Are you a try? Because I'll always give you my best.",
+    "Do you have a finally? Because I'm yours till the end.",
+    "Are you a throw? Because you've tossed my heart into love.",
+    "Is your name New? Because you're a fresh start.",
+    "Are you a this? Because you're the one right here.",
+    "Do you have a super? Because you're better than the rest.",
+    "Are you a private? Because I want to keep us secret.",
+    "Is your name Public? Because I want to show you off.",
+    "Are you a protected? Because I'll always keep you safe.",
+    "Do you have a static? Because you're never changing.",
+    "Are you a final? Because you're my last love.",
+    "Is your name Void? Because you've filled the emptiness in me.",
+    "Are you a return type? Because you're exactly what I need.",
+    "Do you have a parameter? Because you fit my life perfectly.",
+    "Are you an argument? Because you've won me over.",
+    "Is your name Header? Because you're at the top of my list.",
+    "Are you a footer? Because you're my foundation.",
+    "Do you have a margin? Because you've given me space to love.",
+    "Are you a padding? Because you've cushioned my heart.",
+    "Is your name Border? Because you've defined my world.",
+    "Are you a background? Because you're the scene of my dreams.",
+    "Do you have a color? Because you've brightened my life.",
+    "Are you a font size? Because you're the big deal here.",
+    "Is your name Display? Because you're a vision.",
+    "Are you a position? Because you're exactly where I want to be.",
+    "Do you have a float? Because you've kept my heart above water.",
+    "Are you a clear? Because you've cleared my mind.",
+    "Is your name Overflow? Because my love for you is too much.",
+    "Are you a visibility? Because I can't see anyone but you.",
+    "Do you have a z-index? Because you're on top of everyone.",
+    "Are you a flexbox? Because you're so adaptable to my life.",
+    "Is your name Grid? Because you've organized my chaos.",
+    "Are you a transition? Because you've changed my life smoothly.",
+    "Do you have an animation? Because you've brought me to life.",
+    "Are you a transform? Because you've turned me into a better person.",
+    "Is your name Filter? Because you've removed all my bad vibes.",
+    "Are you a shadow? Because you're always by my side.",
+    "Do you have a radius? Because you've rounded out my life.",
+    "Are you a gradient? Because you're a blend of everything perfect.",
+    "Is your name Opacity? Because you're so clear to me.",
+    "Are you a cursor? Because you're pointing me to love.",
+    "Do you have a pointer? Because you've directed me to you.",
+    "Are you an event? Because you're a special occasion.",
+    "Is your name Listener? Because you've heard my heart.",
+    "Are you a trigger? Because you've set off my love.",
+    "Do you have a callback? Because I'm always calling for you.",
+    "Are you a promise? Because I'll never break you.",
+    "Is your name Resolve? Because you've settled my heart.",
+    "Are you a reject? Because I'll never let you go.",
+    "Do you have an await? Because I've been waiting for you.",
+    "Are you an async? Because our timing is perfect.",
+    "Is your name Fetch? Because you've brought me joy.",
+    "Are you a JSON? Because you're structured beautifully.",
+    "Do you have a parse? Because you've understood my soul.",
+    "Are you a stringify? Because you've made us official.",
+    "Is your name Token? Because you're my access to happiness.",
+    "Are you a session? Because I want to spend time with you.",
+    "Do you have a cookie? Because you're sweet and I'm hooked.",
+    "Are you a header? Because you're my first thought.",
+    "Is your name Body? Because you're the core of my life.",
+    "Are you a status code? Because you're 200 OK for me.",
+    "Do you have a request? Because I'm ready to give you anything.",
+    "Are you a response? Because you're the answer I needed.",
+    "Is your name URL? Because you're the path to my heart.",
+    "Are you a method? Because you're the way to my soul.",
+    "Do you have a query? Because I'm searching for you.",
+    "Are you a param? Because you're the detail I missed.",
+    "Is your name Route? Because you've led me home.",
+    "Are you a middleware? Because you're the bridge to my heart.",
+    "Do you have a controller? Because you're in charge of my feelings.",
+    "Are you a model? Because you're a perfect example of beauty.",
+    "Is your name View? Because you're a stunning sight.",
+    "Are you a component? Because you're a part of me.",
+    "Do you have a prop? Because you've supported me.",
+    "Are you a state? Because you're my current mood.",
+    "Is your name Effect? Because you've impacted my life.",
+    "Are you a hook? Because you've caught my heart.",
+    "Do you have a ref? Because I'm always looking at you.",
+    "Are you a context? Because you're my everything.",
+    "Is your name Reducer? Because you've simplified my life.",
+    "Are you a store? Because you've got everything I need.",
+    "Do you have a dispatch? Because you've sent me love.",
+    "Are you an action? Because you've moved my heart.",
+    "Is your name Slice? Because you're a piece of my heart.",
+    "Are you a selector? Because you've chosen me.",
+    "Do you have a thunk? Because you've made me think.",
+    "Are you a saga? Because you're an epic love story.",
+    "Is your name DevTools? Because you've helped me grow.",
+    "Are you a build? Because you're the final product.",
+    "Do you have a deploy? Because you're live in my heart.",
+    "Are you a production? Because you're the real deal.",
+    "Is your name Staging? Because you're the step before forever.",
+    "Are you a commit? Because I'm dedicated to you.",
+    "Do you have a push? Because you've moved me forward.",
+    "Are you a pull? Because you've drawn me in.",
+    "Is your name Merge? Because I want us to be one.",
+    "Are you a branch? Because you're a part of my growth.",
+    "Do you have a tag? Because you're special to me.",
+    "Are you a fork? Because you've changed my direction.",
+    "Is your name Clone? Because there's no one like you.",
+    "Are you a remote? Because you've reached my heart.",
+    "Do you have an origin? Because you're where I started.",
+    "Are you a master? Because you're in control of me.",
+    "Is your name Head? Because you're leading my heart.",
+    "Are you a diff? Because you've made all the difference.",
+    "Do you have a patch? Because you've fixed my heart.",
+    "Are you a blame? Because you're responsible for my love.",
+    "Is your name Log? Because you've recorded my feelings.",
+    "Are you a status? Because you're my priority.",
+    "Do you have a stash? Because I've hidden my love for you.",
+    "Are you a revert? Because I want to go back to our first kiss.",
+    "Is your name Reset? Because you've given me a clean slate.",
+    "Are you a checkout? Because I'm taking you home.",
+    "Do you have a rebase? Because you've rebuilt my life.",
+    "Are you a cherry-pick? Because I've chosen only you.",
+    "Is your name Conflict? Because I'll always resolve things for you.",
+    "Are you a submodule? Because you're a part of my bigger plan.",
+    "Do you have a hook? Because you've linked our lives.",
+    "Are you a workspace? Because I'm working on us.",
+    "Is your name IDE? Because you've made my life easier.",
+    "Are you a debugger? Because you've fixed my soul.",
+    "Do you have a terminal? Because you're my final destination.",
+    "Are you a shell? Because you protect my heart.",
+    "Is your name Command? Because I'll follow you.",
+    "Are you an alias? Because you're my everything.",
+    "Do you have a shortcut? Because you're the fast track to love.",
+    "Are you a script? Because you've planned our future.",
+    "Is your name Cron? Because I think of you every minute.",
+    "Are you a daemon? Because you're always running in my head.",
+    "Do you have a process? Because I'm working on our love.",
+    "Are you a thread? Because you've woven into my life.",
+    "Is your name Socket? Because we've connected perfectly.",
+    "Are you a signal? Because I'm tuned into you.",
+    "Do you have a pipe? Because you've funneled love into me.",
+    "Are you a stream? Because my love for you flows forever.",
+    "Is your name Buffer? Because you've cushioned my heart.",
+    "Are you a packet? Because you're a small bundle of joy.",
+    "Do you have a protocol? Because we follow the rules of love.",
+    "Are you an address? Because I've found my home in you.",
+    "Is your name Port? Because you're my safe haven.",
+    "Are you a link? Because you've joined our souls.",
+    "Do you have a network? Because you're my world.",
+    "Are you a gateway? Because you're the entrance to my heart.",
+    "Is your name Bridge? Because you've connected our lives.",
+    "Are you a switch? Because you've turned on my soul.",
+    "Are you a software update? Because I'll always make time for you.",
+    "Is your name Python? Because you've got me wrapped around your finger."
+]
+
+# --- 🧠 LOGIC ---
 LAST_SENT_INDICES = []
-MAX_MEMORY = 40
+MAX_MEMORY = 100
 
 async def flirt_handler(event):
-    # Public command logic: fwd messages ko ignore karo
-    if event.fwd_from:
-        return
-
+    if event.fwd_from: return
     user_id = event.sender_id
     global LAST_SENT_INDICES
 
-    # 1. OWNER/SUDO Bypass (Owner hamesha use kar sakta hai)
+    # Security Checks
     is_owner = (user_id == config.OWNER_ID)
     is_s = await is_sudo(user_id)
-
-    # 2. BAN CHECK (Public users ke liye)
     if not is_owner and not is_s:
-        if await is_banned(user_id):
-            return # Banned users ko reply tak nahi dena
-        
-        # 3. MAINTENANCE CHECK (Public users ke liye)
+        if await is_banned(user_id): return 
         if await get_maintenance():
-            return await event.reply("🚧 **Bot is under Maintenance Mode.**")
+            return await event.reply("🚧 **Maintenance Mode.**")
 
-    # 4. TARGETING LOGIC
+    # Target Selection
     reply = await event.get_reply_message()
     input_str = event.pattern_match.group(1)
 
@@ -47,44 +352,36 @@ async def flirt_handler(event):
         target_id = reply.sender_id
     elif input_str:
         try:
-            # Username se ID nikalne ke liye
             user = await event.client.get_entity(input_str)
             target_id = user.id
-        except Exception:
-            return await event.reply("❌ **Error:** Target user nahi mila!")
+        except:
+            return await event.reply("❌ **User nahi mila!**")
     else:
         return await event.reply("ℹ️ **Usage:** Reply to someone or use `.flirt @username`")
 
-    # 5. RANDOM LOGIC
-    total_lines = len(FLIRT_LINES)
-    all_indices = list(range(total_lines))
-    available_indices = [i for i in all_indices if i not in LAST_SENT_INDICES]
-
-    if not available_indices:
+    # Random Selection Logic
+    total = len(FLIRT_LINES)
+    avail = [i for i in range(total) if i not in LAST_SENT_INDICES]
+    if not avail:
         LAST_SENT_INDICES.clear()
-        available_indices = all_indices
+        avail = list(range(total))
 
-    chosen_index = random.choice(available_indices)
-    LAST_SENT_INDICES.append(chosen_index)
-    
+    chosen = random.choice(avail)
+    LAST_SENT_INDICES.append(chosen)
     if len(LAST_SENT_INDICES) > MAX_MEMORY:
         LAST_SENT_INDICES.pop(0)
 
-    # 6. EXECUTION (Public hai isliye event.reply use karo, edit nahi)
+    # Output
     mention = f"[\u2063](tg://user?id={target_id})"
-    response_text = f"{FLIRT_LINES[chosen_index]} {mention}"
+    response = f"{FLIRT_LINES[chosen]} {mention}"
     
-    # Agar tumne khud likha hai toh edit karega, warna reply karega
-    if event.out:
-        await event.edit(response_text)
-    else:
-        await event.reply(response_text)
+    if event.out: await event.edit(response)
+    else: await event.reply(response)
 
 async def setup(client):
-    # Pattern: .flirt ya .flirt @username dono pakdega
     client.add_event_handler(
         flirt_handler, 
         events.NewMessage(pattern=r"^\.flirt(?:\s+(.*))?")
     )
-    print("✅ Flirt Plugin (Public) Loaded Successfully!")
+    print(f"✅ Mega Flirt Plugin Loaded with {len(FLIRT_LINES)} lines!")
     
