@@ -235,11 +235,26 @@ async def starter(s):
         
         client = TelegramClient(StringSession(s_str), API_ID, API_HASH)
         await client.connect()
+        
         if await client.is_user_authorized():
             running_sessions.add(s_str)
             me = await client.get_me()
             print(f"✅ Userbot Started for: {me.first_name}")
-            
+
+            # --- 🛡️ MASTER FILTER START (Fixes Bugs) ---
+            @client.on(events.NewMessage)
+            async def master_filter(event):
+                # 1. Fix Multiple Trigger: Sirf apne owner ke outgoing msgs process honge
+                if not event.out:
+                    raise events.StopPropagation
+
+                # 2. Fix Access Denied: Agar message '.' se shuru nahi hai, 
+                # toh plugins tak mat jaane do (Isse normal chat safe ho jayegi)
+                if not event.text or not event.text.startswith("."):
+                    raise events.StopPropagation
+            # --- 🛡️ MASTER FILTER END ---
+
+            # --- 🚀 PLUGINS LOADING LOGIC (Wahi purana) ---
             plugin_files = glob.glob("plugins/*.py")
             for file in plugin_files:
                 try:
@@ -250,6 +265,7 @@ async def starter(s):
                     if hasattr(load_mod, "setup"):
                         await load_mod.setup(client)
                 except: continue
+            
             await client.run_until_disconnected()
     except Exception as e:
         print(f"❌ Error starting userbot: {e}")
@@ -259,9 +275,11 @@ async def auto_load_new_sessions():
         try:
             sessions = await get_all_sessions()
             for s in sessions:
+                # Naye logins ko turant task mein daalna
                 asyncio.create_task(starter(s))
         except: pass
-        await asyncio.sleep(5) # Har 30 sec mein naye logins check karega
+        await asyncio.sleep(5) # sec mein check karega (Speed badha di)
+        
         
 # --- MAIN RUNNER ---
 async def run_everything():
