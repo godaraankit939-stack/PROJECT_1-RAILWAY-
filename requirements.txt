@@ -8,3 +8,4 @@ gunicorn
 motor
 deep-translator
 Pillow
+
