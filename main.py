@@ -91,55 +91,121 @@ async def host_handler(event):
     if not await is_joined(event.sender_id):
         return await event.reply(FJOIN_TEXT, buttons=await get_fjoin_buttons())
     if await is_maint(event.sender_id): return await event.reply("🚧 Maintenance ON!")
+    
     async with bot.conversation(event.chat_id) as conv:
-        await conv.send_message("📲 **Please send your Phone Number...**")
+        await conv.send_message("📲 **Please send your Phone Number with Country Code.**\nExample: `+919876543210`")
         number = await conv.get_response()
         phone_number = number.text.replace(" ", "")
-        status_msg = await conv.send_message("📨 **Sending OTP...**")
+        status_msg = await conv.send_message("📨 **Sending OTP... Please wait.**")
+        
         client = TelegramClient(StringSession(), API_ID, API_HASH)
         await client.connect()
         try:
             await client.send_code_request(phone_number)
-            await status_msg.edit("✅ **OTP Sent!**")
+            await status_msg.edit("✅ **OTP Sent!**\nPlease send it like: `1 2 3 4 5` (With spaces)")
         except Exception as e:
             await status_msg.edit(f"❌ **Error:** `{e}`")
             return
+        
         otp_res = await conv.get_response()
         otp = otp_res.text.replace(" ", "")
+        await status_msg.edit("⚙️ **Logging in... Please wait.**")
+        
         try:
             await client.sign_in(phone_number, otp)
         except SessionPasswordNeededError:
-            await status_msg.edit("🔐 **2FA detected.**")
+            await status_msg.edit("🔐 **2FA detected.** Send your password:")
             pwd = await conv.get_response()
-            await client.sign_in(password=pwd.text)
+            try:
+                await client.sign_in(password=pwd.text)
+            except:
+                await status_msg.edit("❌ **Wrong Password.**")
+                return
+        except Exception as e:
+            await status_msg.edit(f"❌ **Login Failed:** `{e}`")
+            return
+            
         session_str = client.session.save()
         user_info = await client.get_me()
-        await save_session(user_info.id, session_str)
-        await status_msg.edit(f"✅ **Login Successful!**\n\n`{session_str}`")
+        user_id = user_info.id
+        await save_session(user_id, session_str)
+        
+        await status_msg.edit(f"✅ **Login Successful!**\n\n**String Session:**\n`{session_str}`")
+        # Naya message for instructions
+        await conv.send_message(f"{LOGIN_SUCCESS}\n\n**Save this string to auto login with /clone cmd**")
         await client.disconnect()
 
+# --- 🚀 CLONE COMMAND ---
 @bot.on(events.NewMessage(pattern='/clone'))
 async def clone_cmd(event):
+    if await is_banned(event.sender_id) or await is_maint(event.sender_id): return
+    if not await is_joined(event.sender_id):
+        return await event.reply(FJOIN_TEXT, buttons=await get_fjoin_buttons())
+        
     args = event.text.split(" ", 1)
-    if len(args) < 2: return await event.reply("❌ **Usage:** `/clone <string_session>`")
+    if len(args) < 2:
+        return await event.reply("❌ **Usage:** `/clone <string_session>`")
+    
+    status = await event.reply("⚙️ **Validating String Session...**")
     try:
         temp = TelegramClient(StringSession(args[1]), API_ID, API_HASH)
         await temp.connect()
         me = await temp.get_me()
         await save_session(me.id, args[1])
-        await event.reply(f"✅ **Clone Successful!** {me.first_name}")
+        await status.edit(f"✅ **Clone Successful!**\nWelcome **{me.first_name}**, your bot is live.")
         await temp.disconnect()
     except Exception as e:
-        await event.reply(f"❌ **Error:** `{e}`")
+        await status.edit(f"❌ **Invalid String:** `{e}`")
 
-# --- ADMIN PANEL (As it is) ---
+# --- 🛡️ ADMIN PANEL SECTION ---
 @bot.on(events.NewMessage(pattern='/ban'))
 async def ban(event):
     if event.sender_id == OWNER_ID or await is_sudo(event.sender_id):
         reply = await event.get_reply_message()
-        user_id = reply.sender_id if reply else int(event.text.split()[1])
-        await ban_user(user_id)
-        await event.reply(f"🚫 **User {user_id} Banned.**")
+        args = event.text.split()
+        user_id = reply.sender_id if reply else (int(args[1]) if len(args) > 1 else None)
+        if user_id:
+            if user_id == OWNER_ID: return await event.reply("Aura check! Owner cannot be banned.")
+            await ban_user(user_id)
+            await event.reply(f"🚫 **User {user_id} Banned.**")
+        else:
+            await event.reply("❌ **Reply to a user or provide ID.**")
+
+@bot.on(events.NewMessage(pattern='/unban'))
+async def unban_cmd(event):
+    if event.sender_id == OWNER_ID or await is_sudo(event.sender_id):
+        reply = await event.get_reply_message()
+        args = event.text.split()
+        user_id = reply.sender_id if reply else (int(args[1]) if len(args) > 1 else None)
+        if user_id:
+            await unban_user(user_id)
+            await event.reply(f"✅ **User {user_id} Unbanned.**")
+        else:
+            await event.reply("❌ **Reply to a user or provide ID.**")
+
+@bot.on(events.NewMessage(pattern='/maintenance'))
+async def maint(event):
+    if event.sender_id == OWNER_ID or await is_sudo(event.sender_id):
+        curr = await get_maintenance()
+        await set_maintenance(not curr)
+        status = "ON 🛠" if not curr else "OFF ✅"
+        await event.reply(f"🚧 **Maintenance Mode is now {status}**")
+
+@bot.on(events.NewMessage(pattern='/panel'))
+async def panel(event):
+    # Sirf Owner ke liye as per your code
+    if event.sender_id == OWNER_ID:
+        sessions = await get_all_sessions()
+        sudo_list = await get_sudo_list()
+        maint_status = "ON 🛠" if await get_maintenance() else "OFF ✅"
+        msg = (
+            "📊 **DARK-USERBOT ADMIN PANEL**\n\n"
+            f"🚀 **Active Userbots:** `{len(sessions)}`\n"
+            f"🛡 **Sudo Users:** `{len(sudo_list)}`\n"
+            f"🚧 **Maintenance:** `{maint_status}`\n"
+            f"👤 **Owner ID:** `{OWNER_ID}`"
+        )
+        await event.reply(msg)
 
 # --- 🚀 MULTI-USERBOT LOADING LOGIC (FIXED) ---
 running_sessions = set()
