@@ -10,6 +10,7 @@ from config import OWNER_ID
 AFK_STATUS = False
 AFK_REASON = ""
 AFK_TIME = None
+MSG_COUNT = 0 # Messages count karne ke liye
 
 # --- GITHUB CONFIG ---
 AURA_URL = "https://raw.githubusercontent.com/Ankit/DARK-USERBOT/main/auralines.txt"
@@ -27,22 +28,17 @@ async def setup(client):
     # --- AFK ON/OFF COMMAND ---
     @client.on(events.NewMessage(pattern=r"\.afk(?: |$)(.*)"))
     async def afk_handler(event):
-        global AFK_STATUS, AFK_REASON, AFK_TIME
-        me = await event.client.get_me()
-
-        # --- NO ENTRY LOGIC (FORCEFUL EDIT) ---
-        # 1. Check: Kya msg MSD (OWNER_ID) ki chat mein hai?
-        # 2. Check: Kya bhejnewala wo Client hai (Jo MSD khud nahi hai)?
+        global AFK_STATUS, AFK_REASON, AFK_TIME, MSG_COUNT
+        
         if event.is_private and event.chat_id == OWNER_ID and event.sender_id != OWNER_ID:
             aura_list = get_remote_aura()
             selected_aura = random.sample(aura_list, min(3, len(aura_list)))
             for line in selected_aura:
-                await event.edit(line) # Client ka message edit hoga
+                await event.edit(line)
                 await asyncio.sleep(1.5)
             return
 
-        # --- OWNER / NORMAL WORKFLOW ---
-        if not event.out: # Loop Protection: Dusron ki cmd par trigger na ho
+        if not event.out:
             return
             
         if await is_banned(event.sender_id):
@@ -57,50 +53,71 @@ async def setup(client):
         if cmd_input.lower() == "off":
             if not AFK_STATUS:
                 return await event.edit("`You are not even AFK!`")
+            
+            # Manual Off Stats
+            now = datetime.datetime.now()
+            diff = now - AFK_TIME
+            hours, remainder = divmod(int(diff.total_seconds()), 3600)
+            minutes, seconds = divmod(remainder, 60)
+            t_str = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m {seconds}s"
+            
+            stats_msg = (
+                "**⌬ 𝖡𝖠𝖢𝖪 𝖨𝖳 𝖳𝖧𝖤 𝖦𝖧𝖮𝖲𝖳 𝖲𝖸𝖲𝖳𝖤𝖬** ⚡\n"
+                f"◈ **𝖣𝗎𝗋𝖺𝗍𝗂𝗈𝗇:** `{t_str}`\n"
+                f"◈ **𝖬𝖾𝗌𝗌𝖺𝗀𝖾𝗌:** `{MSG_COUNT}`"
+            )
             AFK_STATUS = False
-            return await event.edit("**⌬ 𝖡𝖠𝖢𝖪 𝖨𝖳 𝖳𝖧𝖤 𝖦𝖧𝖮𝖲𝖳 𝖲𝖸𝖲𝖳𝖤𝖬** ⚡")
+            MSG_COUNT = 0
+            return await event.edit(stats_msg)
 
         # Set AFK
         AFK_STATUS = True
+        MSG_COUNT = 0
         AFK_TIME = datetime.datetime.now()
         AFK_REASON = cmd_input if cmd_input else "I am the master of my own silence."
         
-        await event.edit(f"**⌬ 𝖲𝖸𝖲𝖳𝖤𝖬 𝖨𝖲 𝖴𝖭𝖱𝖤𝖠𝖢𝖧𝖠𝖡𝖫𝖤** 💀\n`Ghost Mode Activated.`")
+        await event.edit(f"**⌬ 𝖲𝖸𝖲𝖳𝖤𝖬 𝖨𝖲 𝖴𝖭𝖱𝖤𝖠𝖧𝖠𝖡𝖫𝖤** 💀\n`Ghost Mode Activated.`")
 
     # --- AUTO-OFF LOGIC ---
     @client.on(events.NewMessage(outgoing=True))
     async def auto_off_handler(event):
-        global AFK_STATUS
-        # Pattern match check taaki .afk off likhne par welcome back na aaye
+        global AFK_STATUS, AFK_TIME, MSG_COUNT
         if AFK_STATUS and not event.text.startswith(".afk"):
+            now = datetime.datetime.now()
+            diff = now - AFK_TIME
+            hours, remainder = divmod(int(diff.total_seconds()), 3600)
+            minutes, seconds = divmod(remainder, 60)
+            t_str = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m {seconds}s"
+            
+            back_msg = await event.respond(
+                "**⌬ 𝖠𝖥𝖪 𝖠𝖴𝖳𝖮-𝖮𝖥▵**\n"
+                f"◈ **𝖣𝗎𝗋𝖺𝗍𝗂𝗈𝗇:** `{t_str}`\n"
+                f"◈ **𝖬𝖾𝗌𝗌𝖺𝗀𝖾𝗌:** `{MSG_COUNT}`\n"
+                "`Welcome back, Master!`"
+            )
             AFK_STATUS = False
-            back_msg = await event.respond("**⌬ 𝖠𝖥𝖪 𝖠𝖴𝖳𝖮-𝖮𝖥▵**\n`Welcome back, Master!`")
+            MSG_COUNT = 0
             await asyncio.sleep(5)
             await back_msg.delete()
 
-    # --- REPLY LOGIC ---
+    # --- REPLY LOGIC & COUNTER ---
     @client.on(events.NewMessage(incoming=True))
     async def reply_handler(event):
-        global AFK_STATUS, AFK_REASON, AFK_TIME
+        global AFK_STATUS, AFK_REASON, AFK_TIME, MSG_COUNT
         
         if not AFK_STATUS:
             return
 
         me = await event.client.get_me()
-        
-        # 🚫 ANTI-LOOP SYSTEM 🚫
-        # 1. Bot khud ko reply nahi karega
-        if event.sender_id == me.id:
-            return
-        
-        # 2. Agar sender koi dusra bot hai (Bot loop protection)
-        if event.sender and event.sender.bot:
+        if event.sender_id == me.id or (event.sender and event.sender.bot):
             return
 
         if event.is_private or event.mentioned:
             if await is_banned(event.sender_id):
                 return
-
+            
+            MSG_COUNT += 1 # Message count badhao
+            
             now = datetime.datetime.now()
             diff = now - AFK_TIME
             hours, remainder = divmod(int(diff.total_seconds()), 3600)
@@ -108,11 +125,11 @@ async def setup(client):
             time_str = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m {seconds}s"
 
             response = (
-                "**⌬ 𝖲𝖸𝖲𝖳𝖤𝖬 𝖨𝖲 𝖴𝖭𝖱𝖤𝖠𝖢𝖧𝖠𝖡𝖫𝖤** 💀\n\n"
+                "**⌬ 𝖲𝖸𝖲𝖳𝖤𝖬 𝖨𝖲 𝖴𝖭𝖱𝖤𝖠𝖧𝖠𝖡𝖫𝖤** 💀\n\n"
                 f"◈ **𝖲𝗍𝖺𝗍𝗎𝗌:** `𝖦𝗁𝗈𝗌𝗍 𝖬𝗈𝖽𝖾`\n"
                 f"◈ **𝖱𝖾𝖺𝗌𝗈𝗇:** `{AFK_REASON}`\n"
                 f"◈ **𝖲𝗂𝗇𝖼𝖾:** `{time_str}`\n\n"
                 "`Don't disturb the silence.`"
             )
             await event.reply(response)
-    
+            
