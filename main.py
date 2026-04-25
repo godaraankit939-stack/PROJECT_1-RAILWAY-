@@ -5,7 +5,7 @@ import glob
 import importlib.util
 from flask import Flask
 from threading import Thread
-from telethon import TelegramClient, events, Button
+from telethon import TelegramClient, events, Button, functions, types
 from telethon.sessions import StringSession
 from telethon.errors import (
     PhoneNumberInvalidError, PhoneCodeInvalidError, UserNotParticipantError,
@@ -83,7 +83,53 @@ async def verify_cb(event):
 async def bot_alive(event):
     if await is_banned(event.sender_id): return
     await event.reply("✨ **DARK MANAGER IS LIVE**\nStatus: `Running` 🚀")
-    
+
+# --- 📘 GUIDE COMMAND ---
+@bot.on(events.NewMessage(pattern='/guide'))
+async def guide_handler(event):
+    if await is_banned(event.sender_id): return
+    guide_text = (
+        "📘 **DARK-USERBOT SETUP GUIDE**\n\n"
+        "1️⃣ **How to Host:**\n"
+        "• Send `/host` command.\n"
+        "• Provide your Phone Number (+91...).\n"
+        "• Enter OTP (Send like `1 2 3 4 5`).\n"
+        "• If 2FA is on, enter password.\n\n"
+        "2️⃣ **How to Clone:**\n"
+        "• If you have a String Session, use:\n"
+        "• `/clone YOUR_STRING_HERE`\n\n"
+        "3️⃣ **How to Bot-Host (BHost):**\n"
+        "• Send `/bhost` command.\n"
+        "• Create a bot from @BotFather.\n"
+        "• Paste the **Bot Token** when asked.\n\n"
+        "✨ *Once hosted, use `.help` in your own chat to see all commands!*"
+    )
+    await event.reply(guide_text)
+
+# --- 🤖 B-HOST COMMAND ---
+@bot.on(events.NewMessage(pattern='/bhost'))
+async def bhost_handler(event):
+    if await is_banned(event.sender_id) or await is_maint(event.sender_id): return
+    if not await is_joined(event.sender_id):
+        return await event.reply(FJOIN_TEXT, buttons=await get_fjoin_buttons())
+
+    async with bot.conversation(event.chat_id) as conv:
+        await conv.send_message("🤖 **Please send your Bot Token from @BotFather.**")
+        token_msg = await conv.get_response()
+        bot_token = token_msg.text.strip()
+        
+        status = await conv.send_message("⚙️ **Validating Bot Token...**")
+        try:
+            temp = TelegramClient(StringSession(), API_ID, API_HASH)
+            await temp.start(bot_token=bot_token)
+            me = await temp.get_me()
+            session_str = temp.session.save()
+            await save_session(me.id, session_str)
+            await status.edit(f"✅ **Bot-Host Successful!**\n\n**Bot Name:** {me.first_name}\n**Username:** @{me.username}\n\n*Now you can control this bot via Telegraph or Commands!*")
+            await temp.disconnect()
+        except Exception as e:
+            await status.edit(f"❌ **Invalid Token:** `{e}`")
+
 # --- HOSTING & CLONE ---
 @bot.on(events.NewMessage(pattern='/host'))
 async def host_handler(event):
@@ -114,10 +160,13 @@ async def host_handler(event):
         try:
             await client.sign_in(phone_number, otp)
         except SessionPasswordNeededError:
-            await conv.send_message("🔐 **2FA detected.** Send your password:")
+            m2fa = await conv.send_message("🔐 **2FA detected.** Send your password:")
             pwd = await conv.get_response()
+            # Yahan update kiya hai: password milte hi status edit hoga
+            await m2fa.edit("⚙️ **Logging in... Please wait.**")
             try:
                 await client.sign_in(password=pwd.text)
+                await m2fa.delete() # Login hote hi ye extra msg delete
             except:
                 await conv.send_message("❌ **Wrong Password.**")
                 return
@@ -131,11 +180,8 @@ async def host_handler(event):
         
         await client.disconnect()
         await save_session(user_id, session_str)
-        
-        # Purane status msg ko delete kiya taaki String ekdum niche fresh aaye
         await status_msg.delete()
             
-        # Ab naya message bhej rahe hain taaki ye 2FA/OTP ke niche dikhe
         await conv.send_message(f"✅ **Login Successful!**\n\n**String Session:**\n`{session_str}`\n\n**Save this string to auto login with /clone cmd**")
         await conv.send_message(LOGIN_SUCCESS)
 
@@ -159,7 +205,6 @@ async def clone_cmd(event):
         await temp.disconnect()
     except Exception as e:
         await status.edit(f"❌ **Invalid String:** `{e}`")
-    
 
 # --- 🛡️ ADMIN PANEL SECTION ---
 @bot.on(events.NewMessage(pattern='/ban'))
@@ -222,33 +267,18 @@ async def starter(s_str):
         if await client.is_user_authorized():
             running_sessions.add(s_str)
             me = await client.get_me()
-            print(f"✅ Userbot Started for: {me.first_name}")
+            print(f"✅ Started: {me.first_name}")
 
-                        # --- 🛡️ MASTER FILTER (Sakt Logic for All Bot Users) ---
             @client.on(events.NewMessage)
             async def master_filter(event):
-                # 1. FIXED: Agar message 'Outgoing' nahi hai aur command (.) hai, 
-                # toh use yahi KILL kar do taaki koi dusra banda bot trigger na kar sake.
                 if not event.out and event.text and event.text.startswith("."):
                     raise events.StopPropagation
-
-                # 2. DOUBLE RESPONSE FIX:
-                # Check karo ki ye message isi specific client ka hai ya nahi.
                 me_id = (await client.get_me()).id
                 if event.sender_id != me_id:
-                    # AFK logic ke liye incoming messages ko aage jane dena zaroori hai
-                    if not event.out:
-                        return 
-                    # Kisi aur ke message par bot respond nahi karega
+                    if not event.out: return 
                     raise events.StopPropagation
-
-                # 3. MAGIC/AUTO-TR FIX: 
-                # Bina dot wale messages ko plugins tak jane do taaki edit ho sake.
-                if event.out and not event.text.startswith("."):
-                    return
-
+                if event.out and not event.text.startswith("."): return
                     
-            # --- 🚀 PLUGINS LOADING ---
             plugin_files = glob.glob("plugins/*.py")
             for file in plugin_files:
                 try:
@@ -256,8 +286,7 @@ async def starter(s_str):
                     spec = importlib.util.spec_from_file_location(module_name, file)
                     load_mod = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(load_mod)
-                    if hasattr(load_mod, "setup"):
-                        await load_mod.setup(client)
+                    if hasattr(load_mod, "setup"): await load_mod.setup(client)
                 except: continue
             
             await client.run_until_disconnected()
@@ -266,7 +295,6 @@ async def starter(s_str):
         if s_str in running_sessions: running_sessions.remove(s_str)
 
 async def auto_load_new_sessions():
-    print("🔄 Dynamic Loader Active...")
     while True:
         try:
             sessions = await get_all_sessions()
@@ -274,12 +302,29 @@ async def auto_load_new_sessions():
                 s_str = s[1] if isinstance(s, (list, tuple)) else s
                 asyncio.create_task(starter(s_str))
         except: pass
-        await asyncio.sleep(5)
+        await asyncio.sleep(20)
         
 # --- MAIN RUNNER ---
+async def set_menu():
+    try:
+        await bot(functions.bots.SetBotCommandsRequest(
+            scope=types.BotCommandScopeDefault(),
+            lang_code='en',
+            commands=[
+                types.BotCommand(command='start', description='Start the bot'),
+                types.BotCommand(command='host', description='Host your Userbot'),
+                types.BotCommand(command='clone', description='Host via String Session'),
+                types.BotCommand(command='bhost', description='Host via Bot Token'),
+                types.BotCommand(command='alive', description='Check bot status'),
+                types.BotCommand(command='guide', description='How to use the bot')
+            ]
+        ))
+    except: pass
+
 async def run_everything():
     print("🛑✨ DARK-USERBOT Engine Starting...")
     await bot.start(bot_token=BOT_TOKEN)
+    await set_menu()
     print("📢 Manager Bot is Online!")
     asyncio.create_task(auto_load_new_sessions())
     await bot.run_until_disconnected()
@@ -289,4 +334,3 @@ if __name__ == "__main__":
     try:
         loop.run_until_complete(run_everything())
     except: pass
-        
