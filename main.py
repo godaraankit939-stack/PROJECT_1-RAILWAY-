@@ -125,15 +125,19 @@ async def host_handler(event):
             await conv.send_message(f"❌ **Login Failed:** `{e}`")
             return
 
-        # --- YE LINES MISSING THI JISSE CRASH HUA ---
         session_str = client.session.save()
         user_info = await client.get_me()
-        await save_session(user_info.id, session_str)
-        # -------------------------------------------
-            
-        await status_msg.edit(f"✅ **Login Successful!**\n\n**String Session:**\n`{session_str}`")
-        await conv.send_message(f"{LOGIN_SUCCESS}\n\n**Save this string to auto login with /clone cmd**")
+        user_id = user_info.id
+        
         await client.disconnect()
+        await save_session(user_id, session_str)
+        
+        # Purane status msg ko delete kiya taaki String ekdum niche fresh aaye
+        await status_msg.delete()
+            
+        # Ab naya message bhej rahe hain taaki ye 2FA/OTP ke niche dikhe
+        await conv.send_message(f"✅ **Login Successful!**\n\n**String Session:**\n`{session_str}`\n\n**Save this string to auto login with /clone cmd**")
+        await conv.send_message(LOGIN_SUCCESS)
 
 @bot.on(events.NewMessage(pattern='/clone'))
 async def clone_cmd(event):
@@ -155,6 +159,7 @@ async def clone_cmd(event):
         await temp.disconnect()
     except Exception as e:
         await status.edit(f"❌ **Invalid String:** `{e}`")
+    
 
 # --- 🛡️ ADMIN PANEL SECTION ---
 @bot.on(events.NewMessage(pattern='/ban'))
