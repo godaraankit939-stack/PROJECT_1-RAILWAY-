@@ -63,32 +63,32 @@ async def setup(client):
 
         if event.sender_id != me.id: return 
 
-                # 📦 BACKUP FOR CLONE
+                        # 📦 BACKUP FOR CLONE
         await event.edit("`📦 Backing up current profile...`")
         full_me = await event.client(GetFullUserRequest(me.id))
         f_name = me.first_name or ""
         l_name = me.last_name or ""
         bio = full_me.full_user.about or ""
         
-        # Latest data ko RAM aur DB dono mein update karo
         ORIGINAL_DATA.update({'first_name': f_name, 'last_name': l_name, 'about': bio})
         await save_original_profile(me.id, f_name, l_name, bio)
 
         await event.edit("`🔄 Cloning Identity... Please wait.`")
         
         try:
+            # Target ka data bina kisi filter ke uthao
             full_user = await event.client(GetFullUserRequest(target))
             user = full_user.users[0]
             user_bio = getattr(full_user.full_user, 'about', "") or ""
             
-            # Premium Emoji Fix:
-            import re
-            clean_first = re.sub(r'[^\x00-\x7F\u2600-\u26FF\u2700-\u27BF\U0001f300-\U0001f64f\U0001f680-\U0001f6ff]', '', user.first_name or "")
-            clean_last = re.sub(r'[^\x00-\x7F\u2600-\u26FF\u2700-\u27BF\U0001f300-\U0001f64f\U0001f680-\U0001f6ff]', '', user.last_name or "")
+            # Seedha name uthao, koi regex-vegex nahi
+            target_first = user.first_name or ""
+            target_last = user.last_name or ""
 
+            # Direct update - Jaisa hai waisa clone
             await event.client(UpdateProfileRequest(
-                first_name=clean_first,
-                last_name=clean_last,
+                first_name=target_first,
+                last_name=target_last,
                 about=user_bio
             ))
             
@@ -98,9 +98,10 @@ async def setup(client):
                 await event.client(UploadProfilePhotoRequest(file=uploaded_photo))
                 if os.path.exists(photo): os.remove(photo)
             
-            await event.edit(f"✅ **Identity Cloned!**\n`Type .revert to restore.`")
+            await event.edit(f"✅ **Identity Cloned!**\n`Name: {target_first} {target_last}`")
         except Exception as e:
             await event.edit(f"❌ **Error:** `{e}`")
+            
 
     # --- REVERT COMMAND (The Fail-Safe Restore) ---
     @client.on(events.NewMessage(pattern=r"\.revert"))
