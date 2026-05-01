@@ -97,4 +97,4 @@ async def setup(client):
             await event.client(DeletePhotosRequest(id=[photos.photos[0]]))
         
         await event.edit("✅ **Original Identity Restored!** 👑")
-    
+        
