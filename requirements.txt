@@ -11,3 +11,6 @@ Pillow
 cryptg
 pyaes
 g4f
+gTTS
+SpeechRecognition
+pydub
